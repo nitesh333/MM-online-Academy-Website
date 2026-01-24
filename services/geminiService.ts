@@ -2,9 +2,21 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { Quiz } from "../types";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Safety check for process.env to prevent blank screen crashes
+const getApiKey = () => {
+  try {
+    return process.env.API_KEY || '';
+  } catch {
+    return '';
+  }
+};
+
+const ai = new GoogleGenAI({ apiKey: getApiKey() });
 
 export const generateStudySummary = async (topic: string): Promise<string> => {
+  const key = getApiKey();
+  if (!key) return "AI Assistant is not configured. Please check API settings.";
+  
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
@@ -18,6 +30,9 @@ export const generateStudySummary = async (topic: string): Promise<string> => {
 };
 
 export const generateQuizFromTopic = async (topic: string, subCategoryId: string): Promise<Quiz | null> => {
+  const key = getApiKey();
+  if (!key) return null;
+
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',

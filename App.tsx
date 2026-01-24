@@ -29,7 +29,6 @@ import {
   FileText,
   X,
   BrainCircuit,
-  // Added missing icons to fix errors on lines 530 and 533
   Phone,
   Mail
 } from 'lucide-react';
@@ -51,16 +50,20 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const loadInitialData = async () => {
-      const [notifs, cats, quizList, noteList] = await Promise.all([
-        dataService.getNotifications(),
-        dataService.getCategories(),
-        dataService.getQuizzes(),
-        dataService.getNotes()
-      ]);
-      setNotifications(notifs);
-      setCategories(cats);
-      setQuizzes(quizList);
-      setNotes(noteList);
+      try {
+        const [notifs, cats, quizList, noteList] = await Promise.all([
+          dataService.getNotifications(),
+          dataService.getCategories(),
+          dataService.getQuizzes(),
+          dataService.getNotes()
+        ]);
+        setNotifications(notifs || []);
+        setCategories(cats || []);
+        setQuizzes(quizList || []);
+        setNotes(noteList || []);
+      } catch (err) {
+        console.error("Data loading failed", err);
+      }
     };
     loadInitialData();
 
@@ -205,7 +208,7 @@ const App: React.FC = () => {
             <FileText className="h-5 w-5 text-red-400 shrink-0" />
             <h3 className="text-[11px] md:text-sm font-bold uppercase tracking-widest truncate">{note.title}</h3>
           </div>
-          <button onClose={onClose} className="p-2 hover:bg-white/10 rounded-full transition-colors shrink-0">
+          <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-full transition-colors shrink-0">
             <X className="h-6 w-6" />
           </button>
         </div>
