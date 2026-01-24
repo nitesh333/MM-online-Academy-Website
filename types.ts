@@ -25,6 +25,14 @@ export interface Quiz {
   questions: Question[];
 }
 
+export interface StudyNote {
+  id: string;
+  title: string;
+  url: string;
+  subCategoryId: string;
+  type: 'PDF' | 'Image';
+}
+
 export interface Notification {
   id: string;
   title: string;
