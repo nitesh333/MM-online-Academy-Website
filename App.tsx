@@ -54,10 +54,15 @@ const AdminLogin: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
       if (response && response.success) {
         onLogin();
       } else {
-        setError('Invalid Access Credentials');
+        setError(response.error || 'Invalid Access Credentials');
       }
     } catch (err: any) {
-      setError(err.message || 'Authentication Failed');
+      console.error("Login attempt failed:", err);
+      if (err.message.includes('fetch')) {
+        setError('Network Error: API unreachable or CORS blocked.');
+      } else {
+        setError(err.message || 'Authentication Failed');
+      }
     } finally {
       setIsVerifying(false);
     }
@@ -107,7 +112,11 @@ const AdminLogin: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
               </div>
             </div>
 
-            {error && <p className="text-red-500 text-[10px] font-black uppercase text-center animate-bounce">{error}</p>}
+            {error && (
+              <div className="bg-red-500/10 border border-red-500/20 p-3 rounded-xl">
+                <p className="text-red-500 text-[10px] font-black uppercase text-center">{error}</p>
+              </div>
+            )}
 
             <button 
               type="submit" 

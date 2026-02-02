@@ -1,6 +1,12 @@
 <IfModule mod_rewrite.c>
   RewriteEngine On
   RewriteBase /
+
+  # 1. If the request is for api.php, stop and serve the file directly
+  RewriteCond %{REQUEST_URI} ^/api\.php [NC]
+  RewriteRule .* - [L]
+
+  # 2. Standard SPA routing for React
   RewriteRule ^index\.html$ - [L]
   RewriteCond %{REQUEST_FILENAME} !-f
   RewriteCond %{REQUEST_FILENAME} !-d
