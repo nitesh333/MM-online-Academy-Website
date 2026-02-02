@@ -1,22 +1,9 @@
+
 <?php
 /**
- * Professional Academy Backend API
- * 
- * --- RESOLVING "ACCESS DENIED" (ERROR 1044) ---
- * Based on your screenshots, I have updated the credentials below.
- * 
- * IMPORTANT NEXT STEP IN CPANEL:
- * 1. Go to 'MySQL Databases' in cPanel.
- * 2. Scroll to 'Add User To Database'.
- * 3. Select User: mmtestpr_nitesh
- * 4. Select Database: mmtestpr_mmtestprep
- * 5. Click 'ADD'.
- * 6. ON THE NEXT SCREEN, check the box 'ALL PRIVILEGES' and click 'Make Changes'.
- * 
- * Without step 6, the code cannot read or write to the database.
+ * Professional Academy Backend API - Secure Version
  */
 
-// Prevent stray output/warnings from breaking CORS or JSON
 error_reporting(0);
 ini_set('display_errors', 0);
 ob_start();
@@ -28,20 +15,15 @@ header("Access-Control-Allow-Headers: Content-Type, Access-Control-Allow-Headers
 header("Access-Control-Max-Age: 86400");
 header("Content-Type: application/json; charset=UTF-8");
 
-// Handle Preflight OPTIONS request
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(200);
     exit;
 }
 
-// ============================================================
-// DATABASE CONFIGURATION (Updated from Screenshots)
-// ============================================================
 $host = "localhost";
 $db_name = "mmtestpr_mmtestprep"; 
 $username = "mmtestpr_nitesh";     
 $password = "mmtestprep123";      
-// ============================================================
 
 try {
     $conn = new PDO("mysql:host=$host;dbname=$db_name", $username, $password);
@@ -50,14 +32,7 @@ try {
 } catch(PDOException $e) {
     ob_clean();
     http_response_code(500);
-    
-    $msg = $e->getMessage();
-    
-    echo json_encode([
-        "error" => "Connection failed", 
-        "details" => $msg,
-        "action_required" => "The user 'mmtestpr_nitesh' exists but does NOT have permissions for 'mmtestpr_mmtestprep'. Go back to cPanel -> MySQL Databases -> 'Add User To Database' section. Click 'Add', then check 'ALL PRIVILEGES' on the next screen."
-    ]);
+    echo json_encode(["error" => "Connection failed", "details" => $e->getMessage()]);
     exit;
 }
 
@@ -66,19 +41,58 @@ $id = $_GET['id'] ?? '';
 $method = $_SERVER['REQUEST_METHOD'];
 $input = json_decode(file_get_contents('php://input'), true);
 
+// --- SECURE LOGIN ROUTE ---
+if ($route === 'login' && $method === 'POST') {
+    ob_clean();
+    $user = $input['username'] ?? '';
+    $pass = $input['password'] ?? '';
+    
+    $stmt = $conn->prepare("SELECT * FROM admins WHERE username = ?");
+    $stmt->execute([$user]);
+    $admin = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+    if ($admin) {
+        $storedPass = $admin['password'];
+        $isValid = false;
+
+        // Check if it's already a hash or plain text (Migration Logic)
+        if (password_get_info($storedPass)['algo'] !== 0) {
+            $isValid = password_verify($pass, $storedPass);
+        } else {
+            // It's plain text (Initial Setup)
+            if ($pass === $storedPass) {
+                $isValid = true;
+                // Auto-upgrade to Hash
+                $newHash = password_hash($pass, PASSWORD_DEFAULT);
+                $uStmt = $conn->prepare("UPDATE admins SET password = ? WHERE id = ?");
+                $uStmt->execute([$newHash, $admin['id']]);
+            }
+        }
+
+        if ($isValid) {
+            echo json_encode(["success" => true, "token" => "valid_session_" . bin2hex(random_bytes(16))]);
+            exit;
+        }
+    }
+    
+    http_response_code(401);
+    echo json_encode(["success" => false, "error" => "Invalid Credentials"]);
+    exit;
+}
+
 function getTable($route) {
     $map = [
         'notifications' => 'notifications',
         'categories' => 'categories',
         'quizzes' => 'quizzes',
         'notes' => 'notes',
-        'feedback' => 'feedback'
+        'feedback' => 'feedback',
+        'admins' => 'admins'
     ];
     return $map[$route] ?? null;
 }
 
 $table = getTable($route);
-
 if (!$table) {
     ob_clean();
     http_response_code(400);
@@ -94,12 +108,9 @@ switch ($method) {
             $stmt = $conn->prepare("SELECT * FROM $table WHERE id = ?");
             $stmt->execute([$id]);
             $row = $stmt->fetch(PDO::FETCH_ASSOC);
-            if ($table === 'quizzes' && $row) {
-                $row['questions'] = json_decode($row['questions']);
-            }
-            if ($table === 'feedback' && $row) {
-                $row['isVisible'] = (bool)$row['isVisible'];
-            }
+            if ($table === 'quizzes' && $row) $row['questions'] = json_decode($row['questions']);
+            if ($table === 'feedback' && $row) $row['isVisible'] = (bool)$row['isVisible'];
+            if ($table === 'admins' && $row) unset($row['password']); // Safety
             echo json_encode($row ?: new stdClass());
         } else {
             $stmt = $conn->prepare("SELECT * FROM $table ORDER BY id DESC");
@@ -110,6 +121,9 @@ switch ($method) {
             }
             if ($table === 'feedback') {
                 foreach ($rows as &$r) { $r['isVisible'] = (bool)$r['isVisible']; }
+            }
+            if ($table === 'admins') {
+                foreach ($rows as &$r) { unset($r['password']); } // Safety
             }
             echo json_encode($rows ?: []);
         }
@@ -131,6 +145,10 @@ switch ($method) {
         } elseif ($table === 'feedback') {
             $stmt = $conn->prepare("INSERT INTO feedback (id, quizId, quizTitle, studentName, studentEmail, comment, date, isVisible) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
             $stmt->execute([$input['id'], $input['quizId'], $input['quizTitle'], $input['studentName'], $input['studentEmail'], $input['comment'], $input['date'], 0]);
+        } elseif ($table === 'admins') {
+            $stmt = $conn->prepare("INSERT INTO admins (username, password) VALUES (?, ?)");
+            $hashed = password_hash($input['password'], PASSWORD_DEFAULT);
+            $stmt->execute([$input['username'], $hashed]);
         }
         
         $stmt = $conn->prepare("SELECT * FROM $table ORDER BY id DESC");
@@ -139,6 +157,9 @@ switch ($method) {
         if ($table === 'quizzes') {
             foreach ($rows as &$r) { $r['questions'] = json_decode($r['questions'] ?? '[]'); }
         }
+        if ($table === 'admins') {
+            foreach ($rows as &$r) { unset($r['password']); }
+        }
         echo json_encode($rows ?: []);
         break;
 
@@ -146,11 +167,17 @@ switch ($method) {
         if ($table === 'feedback' && $id) {
             $stmt = $conn->prepare("UPDATE feedback SET isVisible = ? WHERE id = ?");
             $stmt->execute([$input['isVisible'] ? 1 : 0, $id]);
+        } elseif ($table === 'admins' && $id) {
+            $stmt = $conn->prepare("UPDATE admins SET password = ? WHERE id = ?");
+            $hashed = password_hash($input['password'], PASSWORD_DEFAULT);
+            $stmt->execute([$hashed, $id]);
         }
         $stmt = $conn->prepare("SELECT * FROM $table ORDER BY id DESC");
         $stmt->execute();
         $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        foreach ($rows as &$r) { $r['isVisible'] = (bool)$r['isVisible']; }
+        if ($table === 'admins') {
+            foreach ($rows as &$r) { unset($r['password']); }
+        }
         echo json_encode($rows ?: []);
         break;
 
@@ -162,8 +189,8 @@ switch ($method) {
         $stmt = $conn->prepare("SELECT * FROM $table ORDER BY id DESC");
         $stmt->execute();
         $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        if ($table === 'quizzes') {
-            foreach ($rows as &$r) { $r['questions'] = json_decode($r['questions'] ?? '[]'); }
+        if ($table === 'admins') {
+            foreach ($rows as &$r) { unset($r['password']); }
         }
         echo json_encode($rows ?: []);
         break;

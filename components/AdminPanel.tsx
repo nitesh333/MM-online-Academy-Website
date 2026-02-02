@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Plus, Trash2, FileUp, Bell, Layout, Save, X, FileText, Upload, Link, ListChecks, CheckCircle, Youtube, MessageSquare, Mail, User, Eye, EyeOff, FileType, AlertCircle, Loader2 } from 'lucide-react';
+import { Plus, Trash2, FileUp, Bell, Layout, Save, X, FileText, Upload, Link, ListChecks, CheckCircle, Youtube, MessageSquare, Mail, User, Eye, EyeOff, FileType, AlertCircle, Loader2, ShieldCheck, Key, UserPlus } from 'lucide-react';
 import { Notification, SubCategory, Quiz, StudyNote, QuizFeedback, Question } from '../types';
 import { dataService } from '../services/dataService';
 import mammoth from 'mammoth';
@@ -50,12 +50,13 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   onAddQuiz,
   onDeleteQuiz
 }) => {
-  const [activeTab, setActiveTab] = useState<'notifications' | 'categories' | 'quizzes' | 'uploads' | 'feedback' | 'word-converter'>('notifications');
+  const [activeTab, setActiveTab] = useState<'notifications' | 'categories' | 'quizzes' | 'uploads' | 'feedback' | 'word-converter' | 'account'>('notifications');
   const [showAddNews, setShowAddNews] = useState(false);
   const [showAddCategory, setShowAddCategory] = useState(false);
   const [showManualQuiz, setShowManualQuiz] = useState(false);
   const [notes, setNotes] = useState<StudyNote[]>([]);
   const [feedbacks, setFeedbacks] = useState<QuizFeedback[]>([]);
+  const [adminUsers, setAdminUsers] = useState<any[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const wordInputRef = useRef<HTMLInputElement>(null);
   
@@ -67,6 +68,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   const [parsedQuestions, setParsedQuestions] = useState<Question[]>([]);
   const [converterQuizTitle, setConverterQuizTitle] = useState('');
   const [converterCategoryId, setConverterCategoryId] = useState(categories[0]?.id || '');
+
+  // Account State
+  const [newAdmin, setNewAdmin] = useState({ username: '', password: '' });
+  const [updatingPass, setUpdatingPass] = useState<{ id: string, pass: string } | null>(null);
 
   const [manualQuizForm, setManualQuizForm] = useState<{
     title: string;
@@ -94,6 +99,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   useEffect(() => {
     loadNotes();
     loadFeedbacks();
+    loadAdminUsers();
   }, []);
 
   const loadNotes = async () => {
@@ -104,6 +110,38 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   const loadFeedbacks = async () => {
     const list = await dataService.getQuizFeedbacks();
     setFeedbacks(list || []);
+  };
+
+  const loadAdminUsers = async () => {
+    const list = await dataService.getAdmins();
+    setAdminUsers(list || []);
+  };
+
+  const handleAddAdmin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newAdmin.username || !newAdmin.password) return;
+    const updated = await dataService.addAdmin(newAdmin.username, newAdmin.password);
+    setAdminUsers(updated);
+    setNewAdmin({ username: '', password: '' });
+  };
+
+  const handleUpdatePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!updatingPass || !updatingPass.pass) return;
+    const updated = await dataService.updateAdminPassword(updatingPass.id, updatingPass.pass);
+    setAdminUsers(updated);
+    setUpdatingPass(null);
+    alert("Password updated successfully.");
+  };
+
+  const handleDeleteAdmin = async (id: string) => {
+    if (adminUsers.length <= 1) {
+      alert("Cannot delete the last administrator.");
+      return;
+    }
+    if (!confirm("Remove this administrator account?")) return;
+    const updated = await dataService.deleteAdmin(id);
+    setAdminUsers(updated);
   };
 
   const parseWordFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -124,13 +162,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       let currentQuestion: TempQuestion | null = null;
 
       for (const line of lines) {
-        // Regex for Question: "1.", "1)", "Q1.", "Question 1:", or just "1 " at start
         const questionMatch = line.match(/^(?:Q|Question\s*)?(\d+)[\.\)\-\s]+(.*)/i);
-        
-        // Regex for Options: "A.", "a)", "(A)", "A-"
         const optionMatch = line.match(/^[\(\[]?([A-Da-d])[\.\)\-\s\]]+(.*)/i);
-
-        // Regex for Answer: "Ans: A", "Correct: B", "Answer: C"
         const answerMatch = line.match(/(?:Answer|Ans|Correct)(?:\s+is)?[\s:]*([A-Da-d])/i);
 
         if (questionMatch) {
@@ -157,7 +190,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
         }
       }
 
-      // Push final question
       if (currentQuestion && currentQuestion.text && currentQuestion.options.length >= 2) {
         questions.push({
           id: `word_${Date.now()}_${questions.length}`,
@@ -171,7 +203,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       if (!converterQuizTitle) setConverterQuizTitle(file.name.replace('.docx', ''));
     } catch (err) {
       console.error("Word Parse Error:", err);
-      alert("Error parsing Word file. Please ensure it is a valid .docx file.");
+      alert("Error parsing Word file.");
     } finally {
       setIsParsingWord(false);
       if (wordInputRef.current) wordInputRef.current.value = '';
@@ -180,17 +212,15 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
 
   const saveConvertedQuiz = () => {
     if (!converterQuizTitle || parsedQuestions.length === 0) {
-      alert("Please provide a title and ensure questions were correctly parsed.");
+      alert("Please provide a title.");
       return;
     }
-
     const newQuiz: Quiz = {
       id: `word_quiz_${Date.now()}`,
       title: converterQuizTitle,
       subCategoryId: converterCategoryId,
       questions: parsedQuestions
     };
-
     onAddQuiz(newQuiz);
     setParsedQuestions([]);
     setConverterQuizTitle('');
@@ -200,10 +230,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   const handleManualQuizSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (manualQuizForm.questions.some(q => !q.text || q.options.some(o => !o))) {
-      alert("Please fill in all question fields and options.");
+      alert("Please fill in all question fields.");
       return;
     }
-
     const newQuiz: Quiz = {
       id: `manual_${Date.now()}`,
       title: manualQuizForm.title,
@@ -281,7 +310,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   };
 
   const handleDeleteFeedback = async (id: string) => {
-    if (!window.confirm("Are you sure you want to delete this student record?")) return;
+    if (!window.confirm("Are you sure?")) return;
     const updatedList = await dataService.deleteQuizFeedback(id);
     setFeedbacks(updatedList);
   };
@@ -295,7 +324,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
           { id: 'quizzes', label: 'Quizzes', icon: <ListChecks className="h-4 w-4" /> },
           { id: 'word-converter', label: 'Word to MCQ', icon: <FileType className="h-4 w-4" /> },
           { id: 'uploads', label: 'Repo', icon: <FileUp className="h-4 w-4" /> },
-          { id: 'feedback', label: 'Feedback', icon: <MessageSquare className="h-4 w-4" /> }
+          { id: 'feedback', label: 'Feedback', icon: <MessageSquare className="h-4 w-4" /> },
+          { id: 'account', label: 'Account', icon: <ShieldCheck className="h-4 w-4" /> }
         ].map((tab) => (
           <button 
             key={tab.id}
@@ -311,6 +341,56 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       </div>
 
       <div className="p-4 sm:p-6 md:p-8 flex-grow">
+        {activeTab === 'account' && (
+          <div className="space-y-12 animate-in fade-in slide-in-from-top-2">
+             <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+                <div className="space-y-8">
+                   <div className="bg-slate-800/20 border border-slate-700 p-8 rounded-3xl">
+                      <h4 className="text-white font-black text-xs uppercase tracking-widest mb-6 flex items-center gap-2"><UserPlus className="h-4 w-4 text-blue-400" /> Authorized Personnel</h4>
+                      <form onSubmit={handleAddAdmin} className="space-y-4">
+                         <AdminInput value={newAdmin.username} onChange={e => setNewAdmin({...newAdmin, username: e.target.value})} placeholder="New Username" />
+                         <AdminInput type="password" value={newAdmin.password} onChange={e => setNewAdmin({...newAdmin, password: e.target.value})} placeholder="Master Password" />
+                         <button className="w-full bg-blue-600 hover:bg-blue-500 text-white py-4 rounded-xl font-black uppercase text-[10px] tracking-widest transition-all">Grant Access</button>
+                      </form>
+                   </div>
+
+                   {updatingPass && (
+                      <div className="bg-slate-800/40 border border-blue-500/30 p-8 rounded-3xl animate-in zoom-in-95">
+                         <h4 className="text-blue-400 font-black text-xs uppercase tracking-widest mb-6 flex items-center gap-2"><Key className="h-4 w-4" /> Reset Credentials</h4>
+                         <form onSubmit={handleUpdatePassword} className="space-y-4">
+                            <AdminInput autoFocus type="password" value={updatingPass.pass} onChange={e => setUpdatingPass({...updatingPass, pass: e.target.value})} placeholder="Enter New Password" />
+                            <div className="flex gap-3">
+                               <button type="button" onClick={() => setUpdatingPass(null)} className="flex-grow bg-slate-700 text-white py-4 rounded-xl font-black uppercase text-[10px]">Cancel</button>
+                               <button className="flex-grow bg-green-600 text-white py-4 rounded-xl font-black uppercase text-[10px]">Verify & Update</button>
+                            </div>
+                         </form>
+                      </div>
+                   )}
+                </div>
+
+                <div className="space-y-4">
+                   <h4 className="text-white font-black text-xs uppercase tracking-widest mb-4">Registry of Administrators</h4>
+                   <div className="space-y-3">
+                      {adminUsers.map(admin => (
+                         <div key={admin.id} className="p-5 bg-slate-800/20 border border-slate-800 rounded-2xl flex justify-between items-center group hover:border-slate-600">
+                            <div className="flex items-center gap-4">
+                               <div className="h-10 w-10 bg-slate-700 rounded-lg flex items-center justify-center text-blue-400">
+                                  <User className="h-5 w-5" />
+                               </div>
+                               <span className="text-sm font-bold text-slate-200 uppercase tracking-tight">{admin.username}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                               <button onClick={() => setUpdatingPass({ id: admin.id, pass: '' })} className="p-2 text-slate-500 hover:text-blue-400 transition-colors"><Key className="h-4 w-4" /></button>
+                               <button onClick={() => handleDeleteAdmin(admin.id)} className="p-2 text-slate-500 hover:text-red-500 transition-colors"><Trash2 className="h-4 w-4" /></button>
+                            </div>
+                         </div>
+                      ))}
+                   </div>
+                </div>
+             </div>
+          </div>
+        )}
+
         {activeTab === 'word-converter' && (
           <div className="space-y-8 animate-in fade-in slide-in-from-top-2">
             <div className="bg-blue-600/10 border border-blue-500/20 p-6 rounded-2xl flex items-start gap-4">
@@ -318,7 +398,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
               <div>
                 <h4 className="text-blue-400 font-bold text-sm uppercase mb-1 tracking-tight">Parser Engine v2.0</h4>
                 <p className="text-slate-400 text-xs leading-relaxed">
-                  Upload a Word (.docx) file. The system will automatically detect questions and options. Please verify the <b>Correct Answer</b> in the preview before saving.
+                  Upload a Word (.docx) file. The system will automatically detect questions and options.
                 </p>
               </div>
             </div>
@@ -371,7 +451,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                     </div>
                   )}
                   {parsedQuestions.map((q, idx) => (
-                    <div key={idx} className="bg-slate-900 border border-slate-700 p-6 rounded-2xl animate-in slide-in-from-right-2" style={{ animationDelay: `${idx * 50}ms` }}>
+                    <div key={idx} className="bg-slate-900 border border-slate-700 p-6 rounded-2xl">
                       <p className="text-slate-200 text-xs font-bold mb-4">{idx + 1}. {q.text}</p>
                       <div className="grid grid-cols-2 gap-2">
                         {q.options.map((opt, oIdx) => (
@@ -517,7 +597,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
               <form onSubmit={handleAddCategorySubmit} className="bg-slate-800/50 p-6 rounded-lg border border-slate-700 mb-8 animate-in slide-in-from-top-4">
                 <AdminInput required value={categoryForm.id} onChange={(e: any) => setCategoryForm({...categoryForm, id: e.target.value})} placeholder="Slug (e.g. mcat)" />
                 <div className="mt-4">
-                  <AdminInput required value={categoryForm.name} onChange={(e: any) => setCategoryForm({...categoryForm, name: e.target.value})} placeholder="Title (e.g. Medical Admission)" />
+                  <AdminInput required value={categoryForm.name} onChange={(e: any) => setCategoryForm({...categoryForm, name: e.target.value})} placeholder="Title" />
                 </div>
                 <button type="submit" className="mt-4 w-full bg-green-600 text-white py-3.5 rounded font-bold text-[10px] uppercase">Save Directory</button>
               </form>
@@ -549,14 +629,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
               </div>
               <button type="submit" className="w-full bg-green-600 text-white py-4 rounded-xl font-black uppercase text-[10px] shadow-xl">Publish to Repository</button>
             </form>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {notes.map(n => (
-                <div key={n.id} className="p-4 bg-slate-800/20 border border-slate-800 rounded-xl flex justify-between items-center">
-                  <h4 className="font-bold text-slate-200 text-[11px] uppercase truncate pr-4">{n.title}</h4>
-                  <button onClick={() => handleDeleteNote(n.id)} className="p-2 text-slate-600 hover:text-red-500"><Trash2 className="h-4 w-4" /></button>
-                </div>
-              ))}
-            </div>
           </div>
         )}
 

@@ -1,3 +1,4 @@
+
 import { Notification, SubCategory, Quiz, StudyNote, QuizFeedback } from '../types';
 
 /**
@@ -18,7 +19,7 @@ export const dataService = {
     try {
       const response = await fetch(url, {
         method,
-        mode: 'cors', // Explicitly enable CORS
+        mode: 'cors',
         headers: { 
           'Content-Type': 'application/json',
           'Accept': 'application/json'
@@ -27,8 +28,8 @@ export const dataService = {
       });
 
       if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`HTTP ${response.status}: ${errorText || response.statusText}`);
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `HTTP ${response.status}`);
       }
 
       const data = await response.json();
@@ -38,11 +39,13 @@ export const dataService = {
       return data;
     } catch (error) {
       console.error("API Request Failed:", error);
-      // Return empty structures to avoid app crashes
       if (method === 'GET' && !id) return [];
-      return null;
+      throw error;
     }
   },
+
+  login: (username: string, password: string) => 
+    dataService.request('/login', 'POST', { username, password }),
 
   getNotifications: () => dataService.request('/notifications'),
   addNotification: (n: Notification) => dataService.request('/notifications', 'POST', n),
@@ -64,4 +67,9 @@ export const dataService = {
   getQuizFeedbacks: () => dataService.request('/feedback'),
   updateQuizFeedback: (id: string, updates: Partial<QuizFeedback>) => dataService.request(`/feedback/${id}`, 'PUT', updates),
   deleteQuizFeedback: (id: string) => dataService.request(`/feedback/${id}`, 'DELETE'),
+
+  getAdmins: () => dataService.request('/admins'),
+  addAdmin: (username: string, password: string) => dataService.request('/admins', 'POST', { username, password }),
+  updateAdminPassword: (id: string, password: string) => dataService.request(`/admins/${id}`, 'PUT', { password }),
+  deleteAdmin: (id: string) => dataService.request(`/admins/${id}`, 'DELETE'),
 };

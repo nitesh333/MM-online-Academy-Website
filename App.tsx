@@ -31,17 +31,113 @@ import {
   Quote,
   Instagram,
   Linkedin,
-  Music
+  Music,
+  Lock,
+  User,
+  ShieldAlert,
+  Loader2
 } from 'lucide-react';
 
-const App: React.FC = () => {
-  const searchParams = new URLSearchParams(window.location.search);
-  const isAdminOverride = searchParams.get('admin') === 'true';
-  const isAdminSubdomain = window.location.hostname.startsWith('admin.') || isAdminOverride;
+const AdminLogin: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [isVerifying, setIsVerifying] = useState(false);
 
-  const [state, setState] = useState<AppState>({
-    view: isAdminSubdomain ? 'admin' : 'home',
-    isAdmin: isAdminSubdomain
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsVerifying(true);
+    setError('');
+    
+    try {
+      const response = await dataService.login(username, password);
+      if (response && response.success) {
+        onLogin();
+      } else {
+        setError('Invalid Access Credentials');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Authentication Failed');
+    } finally {
+      setIsVerifying(false);
+    }
+  };
+
+  return (
+    <div className="min-h-[80vh] flex items-center justify-center p-6">
+      <div className="w-full max-w-md bg-white dark:bg-pakgreen-dark rounded-[40px] shadow-2xl border border-gold/20 p-10 sm:p-14 relative overflow-hidden animate-in fade-in zoom-in-95 duration-500">
+        <div className="absolute inset-0 islamic-pattern opacity-10"></div>
+        <div className="relative z-10 text-center">
+          <div className="inline-flex p-5 rounded-3xl bg-gold/10 border border-gold/30 mb-8">
+            <ShieldAlert className="h-10 w-10 text-gold-light" />
+          </div>
+          <h2 className="text-3xl font-black text-pakgreen dark:text-gold-light uppercase tracking-tighter mb-2">Institutional Access</h2>
+          <p className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.3em] mb-12">Authorized Personnel Only</p>
+          
+          <form onSubmit={handleSubmit} className="space-y-5 text-left">
+            <div className="space-y-2">
+              <label className="text-[9px] font-black uppercase text-zinc-400 tracking-widest ml-1">Access ID</label>
+              <div className="relative">
+                <User className="absolute left-5 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
+                <input 
+                  type="text" 
+                  autoComplete="username"
+                  value={username}
+                  onChange={e => setUsername(e.target.value)}
+                  className="w-full bg-zinc-50 dark:bg-pakgreen-deepest border-2 border-zinc-200 dark:border-gold/10 p-4 pl-14 rounded-2xl text-xs font-black uppercase tracking-widest outline-none focus:border-gold-light transition-all" 
+                  placeholder="Enter ID"
+                  required
+                />
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <label className="text-[9px] font-black uppercase text-zinc-400 tracking-widest ml-1">Master Password</label>
+              <div className="relative">
+                <Lock className="absolute left-5 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
+                <input 
+                  type="password" 
+                  autoComplete="current-password"
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  className="w-full bg-zinc-50 dark:bg-pakgreen-deepest border-2 border-zinc-200 dark:border-gold/10 p-4 pl-14 rounded-2xl text-xs font-black uppercase tracking-widest outline-none focus:border-gold-light transition-all" 
+                  placeholder="••••••••"
+                  required
+                />
+              </div>
+            </div>
+
+            {error && <p className="text-red-500 text-[10px] font-black uppercase text-center animate-bounce">{error}</p>}
+
+            <button 
+              type="submit" 
+              disabled={isVerifying}
+              className="w-full py-5 bg-pakgreen dark:bg-gold-light text-white dark:text-pakgreen rounded-2xl font-black uppercase text-[10px] tracking-[0.4em] flex items-center justify-center gap-4 hover:scale-[1.02] transition-all shadow-xl mt-8 disabled:opacity-70"
+            >
+              {isVerifying ? (
+                <>Verifying Credentials <Loader2 className="h-4 w-4 animate-spin" /></>
+              ) : (
+                <>Secure Entrance <ArrowRight className="h-4 w-4" /></>
+              )}
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const App: React.FC = () => {
+  const [state, setState] = useState<AppState>(() => {
+    const isSubdomain = window.location.hostname.startsWith('admin.');
+    return {
+      view: isSubdomain ? 'admin' : 'home',
+      isAdmin: isSubdomain
+    };
+  });
+  
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+    return localStorage.getItem('admin_auth') === 'true';
   });
   
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -78,25 +174,29 @@ const App: React.FC = () => {
   useEffect(() => {
     const handleHashChange = async () => {
       const hash = window.location.hash;
+      const isSubdomain = window.location.hostname.startsWith('admin.');
       
-      if (hash === '#/admin' || hash === '#admin') {
+      if ((hash === '#/admin' || hash === '#admin') && isSubdomain) {
         setState({ view: 'admin', isAdmin: true });
+        return;
+      } else if ((hash === '#/admin' || hash === '#admin') && !isSubdomain) {
+        window.location.hash = '#home';
         return;
       }
 
       if (hash.startsWith('#/category')) {
         const subId = hash.split('?id=')[1];
-        setState(prev => ({ ...prev, view: 'category', selectedSubCategory: subId, isAdmin: false }));
+        setState(prev => ({ ...prev, view: 'category', selectedSubCategory: subId, isAdmin: isSubdomain }));
       } else if (hash === '#/notifications') {
-        setState(prev => ({ ...prev, view: 'notifications', isAdmin: false }));
+        setState(prev => ({ ...prev, view: 'notifications', isAdmin: isSubdomain }));
       } else if (hash.startsWith('#/quiz')) {
         const quizId = hash.split('?id=')[1];
         const quizList = await dataService.getQuizzes();
         const found = quizList.find((q: Quiz) => q.id === quizId) || MOCK_QUIZ;
         setActiveQuiz(found);
-        setState(prev => ({ ...prev, view: 'quiz', selectedQuiz: quizId, isAdmin: false }));
+        setState(prev => ({ ...prev, view: 'quiz', selectedQuiz: quizId, isAdmin: isSubdomain }));
       } else if (hash === '' || hash === '#/' || hash === '#home') {
-        setState(prev => ({ ...prev, view: 'home', isAdmin: false }));
+        setState(prev => ({ ...prev, view: isSubdomain ? 'admin' : 'home', isAdmin: isSubdomain }));
       }
     };
 
@@ -111,23 +211,23 @@ const App: React.FC = () => {
     if (view === 'category') hash = subCatId ? `#/category?id=${subCatId}` : '#/category';
     else if (view === 'notifications') hash = '#/notifications';
     else if (view === 'quiz') hash = quizId ? `#/quiz?id=${quizId}` : '#/quiz';
-    else if (view === 'admin') hash = '#/admin';
+    else if (view === 'admin' && state.isAdmin) hash = '#/admin';
     else hash = '';
     
     window.location.hash = hash;
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const enterAdminConsole = () => {
-    setState({ view: 'admin', isAdmin: true });
-    window.location.hash = '#/admin';
+  const handleLoginSuccess = () => {
+    setIsAuthenticated(true);
+    localStorage.setItem('admin_auth', 'true');
   };
 
   const exitAdminConsole = () => {
-    setState({ view: 'home', isAdmin: false });
-    window.location.hash = '';
-    const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
-    window.history.pushState({ path: newUrl }, '', newUrl);
+    setIsAuthenticated(false);
+    localStorage.removeItem('admin_auth');
+    const mainDomain = window.location.hostname.replace('admin.', '');
+    window.location.href = `${window.location.protocol}//${mainDomain}`;
   };
 
   const approvedFeedbacks = feedbacks.filter(f => f.isVisible);
@@ -137,14 +237,6 @@ const App: React.FC = () => {
       <Navbar onNavigate={handleNavigate} />
       
       {viewingNote && <PdfViewer note={viewingNote} onClose={() => setViewingNote(null)} />}
-
-      <button 
-        onClick={enterAdminConsole}
-        className="fixed bottom-10 right-10 z-[999] bg-white dark:bg-pakgreen-dark backdrop-blur-md text-pakgreen dark:text-gold-light px-8 py-5 rounded-2xl border-2 border-pakgreen/20 dark:border-gold/30 shadow-[0_20px_50px_rgba(0,0,0,0.3)] hover:scale-105 hover:bg-gold-light hover:text-white dark:hover:bg-gold-light dark:hover:text-pakgreen transition-all group flex items-center gap-4 active:scale-95"
-      >
-        <Settings className="h-6 w-6 animate-spin-slow" />
-        <span className="text-[12px] font-black uppercase tracking-[0.2em]">Institutional Console</span>
-      </button>
 
       <AdBanner />
 
@@ -397,49 +489,55 @@ const App: React.FC = () => {
            </div>
         )}
 
-        {state.view === 'admin' && (
-          <div className="max-w-7xl mx-auto px-6 sm:px-12 py-12 animate-in fade-in duration-500">
-            <div className="flex justify-between items-center mb-12">
-              <div className="flex items-center gap-4">
-                <div className="bg-pakgreen p-3 rounded-xl border border-gold/30">
-                  <Settings className="h-6 w-6 text-white" />
+        {state.view === 'admin' && state.isAdmin && (
+          <>
+            {!isAuthenticated ? (
+              <AdminLogin onLogin={handleLoginSuccess} />
+            ) : (
+              <div className="max-w-7xl mx-auto px-6 sm:px-12 py-12 animate-in fade-in duration-500">
+                <div className="flex justify-between items-center mb-12">
+                  <div className="flex items-center gap-4">
+                    <div className="bg-pakgreen p-3 rounded-xl border border-gold/30">
+                      <Settings className="h-6 w-6 text-white" />
+                    </div>
+                    <h2 className="text-3xl font-black text-pakgreen dark:text-gold-light uppercase tracking-tighter">Institutional Console</h2>
+                  </div>
+                  <button onClick={exitAdminConsole} className="flex items-center gap-2 text-zinc-500 hover:text-pakgreen dark:hover:text-gold-light transition-colors font-black text-[10px] uppercase tracking-widest">
+                    <LogOut className="h-4 w-4" /> Exit Console
+                  </button>
                 </div>
-                <h2 className="text-3xl font-black text-pakgreen dark:text-gold-light uppercase tracking-tighter">Institutional Console</h2>
+                <AdminPanel 
+                  notifications={notifications}
+                  categories={categories}
+                  quizzes={quizzes}
+                  onAddNotification={async (n) => {
+                    const updated = await dataService.addNotification(n);
+                    setNotifications(updated);
+                  }}
+                  onDeleteNotification={async (id) => {
+                    const updated = await dataService.deleteNotification(id);
+                    setNotifications(updated);
+                  }}
+                  onAddCategory={async (c) => {
+                    const updated = await dataService.addCategory(c);
+                    setCategories(updated);
+                  }}
+                  onDeleteCategory={async (id) => {
+                    const updated = await dataService.deleteCategory(id);
+                    setCategories(updated);
+                  }}
+                  onAddQuiz={async (q) => {
+                    const updated = await dataService.addQuiz(q);
+                    setQuizzes(updated);
+                  }}
+                  onDeleteQuiz={async (id) => {
+                    const updated = await dataService.deleteQuiz(id);
+                    setQuizzes(updated);
+                  }}
+                />
               </div>
-              <button onClick={exitAdminConsole} className="flex items-center gap-2 text-zinc-500 hover:text-pakgreen dark:hover:text-gold-light transition-colors font-black text-[10px] uppercase tracking-widest">
-                <LogOut className="h-4 w-4" /> Exit Console
-              </button>
-            </div>
-            <AdminPanel 
-              notifications={notifications}
-              categories={categories}
-              quizzes={quizzes}
-              onAddNotification={async (n) => {
-                const updated = await dataService.addNotification(n);
-                setNotifications(updated);
-              }}
-              onDeleteNotification={async (id) => {
-                const updated = await dataService.deleteNotification(id);
-                setNotifications(updated);
-              }}
-              onAddCategory={async (c) => {
-                const updated = await dataService.addCategory(c);
-                setCategories(updated);
-              }}
-              onDeleteCategory={async (id) => {
-                const updated = await dataService.deleteCategory(id);
-                setCategories(updated);
-              }}
-              onAddQuiz={async (q) => {
-                const updated = await dataService.addQuiz(q);
-                setQuizzes(updated);
-              }}
-              onDeleteQuiz={async (id) => {
-                const updated = await dataService.deleteQuiz(id);
-                setQuizzes(updated);
-              }}
-            />
-          </div>
+            )}
+          </>
         )}
       </main>
 
