@@ -1,49 +1,47 @@
+import { Notification, SubCategory, Quiz, StudyNote, QuizFeedback } from '../types';
 
-import { Notification, SubCategory, Quiz, StudyNote } from '../types';
-import { LAW_SUBCATEGORIES, GENERAL_SUBCATEGORIES, INITIAL_NOTIFICATIONS, MOCK_QUIZ } from '../constants';
-
-const API_BASE_URL = ''; 
+/**
+ * CONFIGURATION:
+ * Pointing to your live Hoster PK domain.
+ */
+const API_BASE_URL = 'https://mmtestpreparation.com/api.php'; 
 
 export const dataService = {
   async request(endpoint: string, method: string = 'GET', body?: any) {
-    if (!API_BASE_URL) {
-      return this.handleLocalFallback(endpoint, method, body);
-    }
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-      method,
-      headers: { 'Content-Type': 'application/json' },
-      body: body ? JSON.stringify(body) : undefined
-    });
-    return response.json();
-  },
+    const segments = endpoint.split('/').filter(Boolean);
+    const route = segments[0];
+    const id = segments[1];
+    
+    let url = `${API_BASE_URL}?route=${route}`;
+    if (id) url += `&id=${id}`;
 
-  handleLocalFallback(endpoint: string, method: string, body?: any) {
-    const key = endpoint.split('/')[1];
-    const data = localStorage.getItem(`pa_${key}`);
-    let list = data ? JSON.parse(data) : this.getDefaultData(key);
+    try {
+      const response = await fetch(url, {
+        method,
+        mode: 'cors', // Explicitly enable CORS
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: body ? JSON.stringify(body) : undefined
+      });
 
-    if (method === 'GET') return list;
-    if (method === 'POST') {
-      const newList = [body, ...list];
-      localStorage.setItem(`pa_${key}`, JSON.stringify(newList));
-      return newList;
-    }
-    if (method === 'DELETE') {
-      const id = endpoint.split('/').pop();
-      const newList = list.filter((item: any) => item.id !== id);
-      localStorage.setItem(`pa_${key}`, JSON.stringify(newList));
-      return newList;
-    }
-  },
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorText || response.statusText}`);
+      }
 
-  getDefaultData(key: string) {
-    if (key === 'notifications') return INITIAL_NOTIFICATIONS;
-    if (key === 'categories') return [...LAW_SUBCATEGORIES, ...GENERAL_SUBCATEGORIES];
-    if (key === 'quizzes') return [MOCK_QUIZ];
-    if (key === 'notes') return [
-      { id: 'note1', title: 'Pakistan Constitution Overview', url: 'https://www.pakistanconstitutionlaw.com/wp-content/uploads/2015/05/Constitution-of-Pakistan-1973.pdf', subCategoryId: 'law-gat', type: 'PDF' }
-    ];
-    return [];
+      const data = await response.json();
+      if (method === 'GET' && !id) {
+        return Array.isArray(data) ? data : [];
+      }
+      return data;
+    } catch (error) {
+      console.error("API Request Failed:", error);
+      // Return empty structures to avoid app crashes
+      if (method === 'GET' && !id) return [];
+      return null;
+    }
   },
 
   getNotifications: () => dataService.request('/notifications'),
@@ -61,4 +59,9 @@ export const dataService = {
   getNotes: () => dataService.request('/notes'),
   addNote: (n: StudyNote) => dataService.request('/notes', 'POST', n),
   deleteNote: (id: string) => dataService.request(`/notes/${id}`, 'DELETE'),
+
+  saveQuizFeedback: (f: QuizFeedback) => dataService.request('/feedback', 'POST', f),
+  getQuizFeedbacks: () => dataService.request('/feedback'),
+  updateQuizFeedback: (id: string, updates: Partial<QuizFeedback>) => dataService.request(`/feedback/${id}`, 'PUT', updates),
+  deleteQuizFeedback: (id: string) => dataService.request(`/feedback/${id}`, 'DELETE'),
 };

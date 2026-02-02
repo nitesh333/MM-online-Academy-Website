@@ -3,75 +3,88 @@ import React, { useState, useEffect } from 'react';
 import Navbar from './components/Navbar';
 import QuizModule from './components/QuizModule';
 import AdminPanel from './components/AdminPanel';
+import AdBanner from './components/AdBanner';
 import { 
-  LAW_SUBCATEGORIES, 
-  GENERAL_SUBCATEGORIES, 
-  INITIAL_NOTIFICATIONS, 
   MOCK_QUIZ 
 } from './constants';
 import { dataService } from './services/dataService';
-import { AppState, Notification, Quiz, SubCategory, StudyNote } from './types';
+import { AppState, Notification, Quiz, SubCategory, StudyNote, QuizFeedback } from './types';
 import { 
   ChevronRight, 
-  Search,
-  Lock,
   LogOut,
   Facebook,
-  Twitter,
-  Instagram,
   Youtube,
   Megaphone,
-  Share2,
-  Copy,
-  MessageCircle,
-  Download,
   BookOpen,
   FileText,
   X,
-  BrainCircuit,
   Phone,
-  Mail
+  Mail,
+  Settings,
+  ArrowRight,
+  GraduationCap,
+  ShieldCheck,
+  Award,
+  Clock,
+  Star,
+  ListChecks,
+  Quote,
+  Instagram,
+  Linkedin,
+  Music
 } from 'lucide-react';
-import { generateStudySummary } from './services/geminiService';
 
 const App: React.FC = () => {
+  const searchParams = new URLSearchParams(window.location.search);
+  const isAdminOverride = searchParams.get('admin') === 'true';
+  const isAdminSubdomain = window.location.hostname.startsWith('admin.') || isAdminOverride;
+
   const [state, setState] = useState<AppState>({
-    view: 'home',
-    isAdmin: false
+    view: isAdminSubdomain ? 'admin' : 'home',
+    isAdmin: isAdminSubdomain
   });
   
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [categories, setCategories] = useState<SubCategory[]>([]);
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
   const [notes, setNotes] = useState<StudyNote[]>([]);
+  const [feedbacks, setFeedbacks] = useState<QuizFeedback[]>([]);
   const [activeQuiz, setActiveQuiz] = useState<Quiz | null>(null);
-  const [aiSummary, setAiSummary] = useState<string | null>(null);
   const [viewingNote, setViewingNote] = useState<StudyNote | null>(null);
 
-  useEffect(() => {
-    const loadInitialData = async () => {
-      try {
-        const [notifs, cats, quizList, noteList] = await Promise.all([
-          dataService.getNotifications(),
-          dataService.getCategories(),
-          dataService.getQuizzes(),
-          dataService.getNotes()
-        ]);
-        setNotifications(notifs || []);
-        setCategories(cats || []);
-        setQuizzes(quizList || []);
-        setNotes(noteList || []);
-      } catch (err) {
-        console.error("Data loading failed", err);
-      }
-    };
-    loadInitialData();
+  const loadAllData = async () => {
+    try {
+      const [notifs, cats, quizList, noteList, feedbackList] = await Promise.all([
+        dataService.getNotifications(),
+        dataService.getCategories(),
+        dataService.getQuizzes(),
+        dataService.getNotes(),
+        dataService.getQuizFeedbacks()
+      ]);
+      setNotifications(notifs || []);
+      setCategories(cats || []);
+      setQuizzes(quizList || []);
+      setNotes(noteList || []);
+      setFeedbacks(feedbackList || []);
+    } catch (err) {
+      console.error("Data loading failed", err);
+    }
+  };
 
+  useEffect(() => {
+    loadAllData();
+  }, []);
+
+  useEffect(() => {
     const handleHashChange = async () => {
       const hash = window.location.hash;
-      if (hash === '#admin') {
-        setState(prev => ({ ...prev, view: 'admin', isAdmin: true }));
-      } else if (hash.startsWith('#/category')) {
+      
+      if (hash === '#/admin' || hash === '#admin') {
+        setState({ view: 'admin', isAdmin: true });
+        return;
+      }
+
+      if (hash.startsWith('#/category')) {
         const subId = hash.split('?id=')[1];
         setState(prev => ({ ...prev, view: 'category', selectedSubCategory: subId, isAdmin: false }));
       } else if (hash === '#/notifications') {
@@ -82,14 +95,14 @@ const App: React.FC = () => {
         const found = quizList.find((q: Quiz) => q.id === quizId) || MOCK_QUIZ;
         setActiveQuiz(found);
         setState(prev => ({ ...prev, view: 'quiz', selectedQuiz: quizId, isAdmin: false }));
-      } else {
+      } else if (hash === '' || hash === '#/' || hash === '#home') {
         setState(prev => ({ ...prev, view: 'home', isAdmin: false }));
       }
     };
 
     window.addEventListener('hashchange', handleHashChange);
     handleHashChange();
-
+    
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);
 
@@ -98,464 +111,432 @@ const App: React.FC = () => {
     if (view === 'category') hash = subCatId ? `#/category?id=${subCatId}` : '#/category';
     else if (view === 'notifications') hash = '#/notifications';
     else if (view === 'quiz') hash = quizId ? `#/quiz?id=${quizId}` : '#/quiz';
+    else if (view === 'admin') hash = '#/admin';
     else hash = '';
     
     window.location.hash = hash;
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleAiHelp = async (topic: string) => {
-    setAiSummary("Consulting AI Intelligence...");
-    const result = await generateStudySummary(topic);
-    setAiSummary(result);
+  const enterAdminConsole = () => {
+    setState({ view: 'admin', isAdmin: true });
+    window.location.hash = '#/admin';
   };
 
-  const handleAddNotification = async (n: Notification) => {
-    const updated = await dataService.addNotification(n);
-    setNotifications(updated);
+  const exitAdminConsole = () => {
+    setState({ view: 'home', isAdmin: false });
+    window.location.hash = '';
+    const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+    window.history.pushState({ path: newUrl }, '', newUrl);
   };
 
-  const handleDeleteNotification = async (id: string) => {
-    const updated = await dataService.deleteNotification(id);
-    setNotifications(updated);
-  };
-
-  const handleAddQuiz = async (q: Quiz) => {
-    const newList = await dataService.addQuiz(q);
-    setQuizzes(newList);
-  };
-
-  const handleDeleteQuiz = async (id: string) => {
-    const updated = await dataService.deleteQuiz(id);
-    setQuizzes(updated);
-  };
-
-  const handleAddCategory = async (c: SubCategory) => {
-    const updated = await dataService.addCategory(c);
-    setCategories(updated);
-  };
-
-  const handleDeleteCategory = async (id: string) => {
-    const updated = await dataService.deleteCategory(id);
-    setCategories(updated);
-  };
-
-  const shareArticle = (title: string, platform: 'whatsapp' | 'facebook' | 'twitter' | 'copy') => {
-    const url = window.location.href;
-    const text = `${title}\n\nRead more at: ${url}`;
-    
-    switch (platform) {
-      case 'whatsapp':
-        window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
-        break;
-      case 'facebook':
-        window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`, '_blank');
-        break;
-      case 'twitter':
-        window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(title)}&url=${encodeURIComponent(url)}`, '_blank');
-        break;
-      case 'copy':
-        navigator.clipboard.writeText(url);
-        alert('Link copied to clipboard!');
-        break;
-    }
-  };
-
-  const ShareBar = ({ title }: { title: string }) => (
-    <div className="flex items-center gap-2 md:gap-3 mt-4 pt-4 border-t border-gray-100 flex-wrap">
-      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1 w-full sm:w-auto mb-2 sm:mb-0">
-        <Share2 className="h-3 w-3" /> Share Now:
-      </span>
-      <div className="flex gap-2 w-full sm:w-auto justify-start">
-        <button 
-          onClick={(e) => { e.stopPropagation(); shareArticle(title, 'whatsapp'); }}
-          className="p-2.5 bg-[#25d366] text-white rounded-full hover:scale-110 transition-transform shadow-sm active:scale-95"
-          title="Share on WhatsApp"
-        >
-          <MessageCircle className="h-4 w-4" />
-        </button>
-        <button 
-          onClick={(e) => { e.stopPropagation(); shareArticle(title, 'facebook'); }}
-          className="p-2.5 bg-[#1877f2] text-white rounded-full hover:scale-110 transition-transform shadow-sm active:scale-95"
-          title="Share on Facebook"
-        >
-          <Facebook className="h-4 w-4" />
-        </button>
-        <button 
-          onClick={(e) => { e.stopPropagation(); shareArticle(title, 'twitter'); }}
-          className="p-2.5 bg-[#1da1f2] text-white rounded-full hover:scale-110 transition-transform shadow-sm active:scale-95"
-          title="Share on Twitter"
-        >
-          <Twitter className="h-4 w-4" />
-        </button>
-        <button 
-          onClick={(e) => { e.stopPropagation(); shareArticle(title, 'copy'); }}
-          className="p-2.5 bg-gray-500 text-white rounded-full hover:scale-110 transition-transform shadow-sm active:scale-95"
-          title="Copy Link"
-        >
-          <Copy className="h-4 w-4" />
-        </button>
-      </div>
-    </div>
-  );
-
-  const PdfViewer = ({ note, onClose }: { note: StudyNote; onClose: () => void }) => (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center p-0 md:p-4 lg:p-8 overflow-hidden">
-      <div className="absolute inset-0 bg-black/85 backdrop-blur-md" onClick={onClose}></div>
-      <div className="relative bg-white w-full h-full md:max-w-6xl md:h-[90%] flex flex-col md:rounded-lg shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
-        <div className="bg-[#1a2b48] text-white px-4 md:px-6 py-4 flex justify-between items-center shrink-0">
-          <div className="flex items-center gap-2 md:gap-3 truncate pr-4">
-            <FileText className="h-5 w-5 text-red-400 shrink-0" />
-            <h3 className="text-[11px] md:text-sm font-bold uppercase tracking-widest truncate">{note.title}</h3>
-          </div>
-          <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-full transition-colors shrink-0">
-            <X className="h-6 w-6" />
-          </button>
-        </div>
-        <div className="flex-grow bg-gray-100 flex items-center justify-center overflow-hidden">
-          <iframe 
-            src={`${note.url}#toolbar=0&navpanes=0&scrollbar=1`} 
-            className="w-full h-full border-none bg-white"
-            title={note.title}
-          />
-        </div>
-        <div className="bg-white px-4 md:px-6 py-4 flex flex-col sm:flex-row justify-between items-center border-t border-gray-200 gap-4 shrink-0">
-          <p className="text-[9px] md:text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center sm:text-left">MM Online Academy - Student Repository</p>
-          <div className="flex gap-2 w-full sm:w-auto">
-            <a href={note.url} target="_blank" rel="noopener noreferrer" className="flex-grow sm:flex-none flex items-center justify-center gap-2 border border-[#1a2b48] text-[#1a2b48] px-5 py-2.5 rounded text-[10px] font-bold uppercase hover:bg-gray-50 transition-colors">
-              Full Screen
-            </a>
-            <a href={note.url} download className="flex-grow sm:flex-none flex items-center justify-center gap-2 bg-[#1a2b48] text-white px-5 py-2.5 rounded text-[10px] font-bold uppercase hover:bg-black transition-colors shadow-sm">
-               <Download className="h-3 w-3" /> Download
-            </a>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-
-  if (state.view === 'admin') {
-    return (
-      <div className="min-h-screen bg-gray-100 flex flex-col font-sans">
-        <header className="bg-[#1a2b48] text-white px-4 md:px-8 py-4 flex justify-between items-center shadow-md">
-          <div className="flex items-center gap-3">
-            <Lock className="h-5 w-5" />
-            <h1 className="text-sm md:text-lg font-bold uppercase tracking-tight">Admin Console</h1>
-          </div>
-          <button 
-            onClick={() => { window.location.hash = ''; }}
-            className="flex items-center gap-2 bg-red-600 px-3 py-1.5 md:px-4 md:py-2 rounded text-[10px] md:text-xs font-bold hover:bg-red-700 transition-all uppercase"
-          >
-            <LogOut className="h-3.5 w-3.5" /> Sign Out
-          </button>
-        </header>
-        <main className="flex-grow p-4 md:p-8 max-w-7xl mx-auto w-full">
-          <AdminPanel 
-            notifications={notifications} 
-            categories={categories}
-            quizzes={quizzes}
-            onAddNotification={handleAddNotification}
-            onDeleteNotification={handleDeleteNotification}
-            onAddCategory={handleAddCategory}
-            onDeleteCategory={handleDeleteCategory}
-            onAddQuiz={handleAddQuiz}
-            onDeleteQuiz={handleDeleteQuiz}
-          />
-        </main>
-      </div>
-    );
-  }
+  const approvedFeedbacks = feedbacks.filter(f => f.isVisible);
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#f2f2f2] overflow-x-hidden">
+    <div className="min-h-screen flex flex-col bg-zinc-50 dark:bg-pakgreen-deepest text-zinc-900 dark:text-zinc-100 pb-20 sm:pb-32 overflow-x-hidden transition-colors islamic-pattern">
       <Navbar onNavigate={handleNavigate} />
       
       {viewingNote && <PdfViewer note={viewingNote} onClose={() => setViewingNote(null)} />}
 
-      <a 
-        href="https://wa.me/923001234567" 
-        target="_blank" 
-        rel="noopener noreferrer"
-        className="fixed bottom-6 right-6 md:bottom-10 md:right-10 z-[100] bg-[#25d366] text-white p-4 rounded-full shadow-2xl hover:scale-110 active:scale-90 transition-all shadow-[#25d366]/40"
-        aria-label="Contact on WhatsApp"
+      <button 
+        onClick={enterAdminConsole}
+        className="fixed bottom-10 right-10 z-[999] bg-white dark:bg-pakgreen-dark backdrop-blur-md text-pakgreen dark:text-gold-light px-8 py-5 rounded-2xl border-2 border-pakgreen/20 dark:border-gold/30 shadow-[0_20px_50px_rgba(0,0,0,0.3)] hover:scale-105 hover:bg-gold-light hover:text-white dark:hover:bg-gold-light dark:hover:text-pakgreen transition-all group flex items-center gap-4 active:scale-95"
       >
-        <MessageCircle className="h-6 w-6 md:h-8 md:w-8" />
-      </a>
+        <Settings className="h-6 w-6 animate-spin-slow" />
+        <span className="text-[12px] font-black uppercase tracking-[0.2em]">Institutional Console</span>
+      </button>
 
-      <main className="flex-grow max-w-7xl mx-auto w-full px-4 md:px-6 py-6 md:py-10">
+      <AdBanner />
+
+      <main className="flex-grow w-full">
         {state.view === 'home' && (
-          <div className="flex flex-col lg:grid lg:grid-cols-12 gap-8 lg:items-start">
-            <div className="lg:col-span-8 space-y-8 order-2 lg:order-1">
-              <section className="bg-white rounded-md shadow-sm border border-gray-200 overflow-hidden">
-                <div className="bg-red-600 text-white px-5 py-3 font-bold text-sm md:text-lg uppercase tracking-tight flex items-center gap-3">
-                  <Megaphone className="h-4 w-4 md:h-5 md:w-5" /> Latest Announcements
-                </div>
-                <div className="p-0 divide-y divide-gray-100">
-                  {notifications.filter(n => n.type === 'News' || n.type === 'Test Date').map(n => (
-                    <div 
-                      key={n.id} 
-                      className="p-5 md:p-8 hover:bg-gray-50 transition-colors cursor-pointer group"
-                      onClick={() => handleNavigate('notifications')}
-                    >
-                      <div className="flex justify-between items-start mb-4">
-                        <span className="text-[10px] font-bold text-[#1a2b48] uppercase tracking-[0.2em]">{n.date}</span>
-                        <span className="text-[9px] font-black bg-red-50 text-red-600 px-3 py-1 rounded-full border border-red-100 uppercase">New</span>
-                      </div>
-                      <h3 className="font-bold text-gray-800 text-base md:text-xl group-hover:text-[#1a2b48] transition-colors leading-tight mb-3">{n.title}</h3>
-                      <p className="text-gray-500 text-xs md:text-sm mt-2 line-clamp-2 leading-relaxed">{n.content}</p>
-                      <ShareBar title={n.title} />
-                    </div>
-                  ))}
-                  {notifications.filter(n => n.type === 'News' || n.type === 'Test Date').length === 0 && (
-                    <div className="p-16 text-center text-gray-400 font-bold uppercase text-[10px] tracking-widest">Updating news repository...</div>
-                  )}
-                </div>
-              </section>
-
-              <div className="grid grid-cols-1 gap-6 md:gap-8">
-                <section className="bg-white rounded-md shadow-sm border border-gray-200 overflow-hidden">
-                  <div className="section-title-bg text-white px-5 py-3 font-bold text-sm md:text-lg uppercase tracking-tight">
-                    Law Admission Test (LAT) Preparation
-                  </div>
-                  <div className="p-4 md:p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {categories.filter(s => s.id === 'lat' || s.id.startsWith('llb')).map(sub => (
-                      <div 
-                        key={sub.id} 
-                        onClick={() => handleNavigate('category', sub.id)}
-                        className="group p-5 bg-[#f9f9f9] border-l-4 border-gray-200 hover:border-[#1a2b48] transition-all cursor-pointer shadow-sm hover:translate-y-[-2px] active:translate-y-0"
-                      >
-                        <h3 className="font-bold text-gray-800 group-hover:text-[#1a2b48] transition-colors text-xs md:text-sm uppercase">{sub.name}</h3>
-                        <p className="text-[10px] text-gray-400 mt-2 uppercase font-black tracking-widest">Start Learning</p>
-                      </div>
-                    ))}
-                  </div>
-                </section>
-
-                <section className="bg-white rounded-md shadow-sm border border-gray-200 overflow-hidden">
-                  <div className="section-title-bg text-white px-5 py-3 font-bold text-sm md:text-lg uppercase tracking-tight">
-                    LAW GAT & Professional Tests
-                  </div>
-                  <div className="p-4 md:p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {categories.filter(s => s.id === 'law-gat' || s.id === 'iba').map(sub => (
-                      <div 
-                        key={sub.id} 
-                        onClick={() => handleNavigate('category', sub.id)}
-                        className="group p-5 bg-[#f9f9f9] border-l-4 border-gray-200 hover:border-[#1a2b48] transition-all cursor-pointer shadow-sm hover:translate-y-[-2px]"
-                      >
-                        <h3 className="font-bold text-gray-800 group-hover:text-[#1a2b48] transition-colors text-xs md:text-sm uppercase">{sub.name}</h3>
-                        <p className="text-[10px] text-gray-400 mt-2 uppercase font-black tracking-widest">Resources Hub</p>
-                      </div>
-                    ))}
-                  </div>
-                </section>
+          <div className="animate-in fade-in duration-1000">
+            {/* Hero Section */}
+            <section className="relative min-h-[600px] flex items-center overflow-hidden bg-white dark:bg-pakgreen-dark border-b border-gold/20 transition-all shadow-inner">
+              <div className="absolute inset-0 z-0">
+                <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-pakgreen/5 via-transparent to-gold/5 dark:from-gold-light/5 dark:via-pakgreen-dark/40 dark:to-transparent"></div>
+                <div className="absolute inset-0 islamic-pattern opacity-40"></div>
               </div>
+
+              <div className="max-w-7xl mx-auto w-full px-6 sm:px-12 grid grid-cols-1 lg:grid-cols-2 gap-20 relative z-10 py-24">
+                <div className="flex flex-col justify-center">
+                  <div className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-gold/10 border border-gold/30 text-gold-dark dark:text-gold-light font-black text-[10px] uppercase tracking-[0.3em] mb-10 w-fit">
+                    <Star className="h-4 w-4 fill-current" /> Pakistan's Academic Standard
+                  </div>
+                  <h1 className="text-5xl sm:text-7xl lg:text-8xl font-black text-pakgreen dark:text-white leading-[0.95] tracking-tighter mb-10 uppercase">
+                    Elite <span className="text-transparent bg-clip-text bg-gradient-to-r from-pakgreen to-gold-dark dark:from-gold-light dark:to-yellow-300">Legal</span> &<br /> 
+                    Admission Portal
+                  </h1>
+                  <p className="text-zinc-600 dark:text-zinc-300 text-sm sm:text-lg max-w-xl leading-relaxed mb-12 font-medium tracking-tight">
+                    Professional Academy (MM Online) provides a state-of-the-art preparation environment for LAT, LAW GAT, MCAT, and superior legal studies across Pakistan.
+                  </p>
+                  
+                  <div className="flex flex-wrap gap-6">
+                    <button onClick={() => handleNavigate('category', 'lat')} className="bg-pakgreen text-white dark:bg-gold-light dark:text-pakgreen px-12 py-6 rounded-2xl font-black uppercase text-[11px] tracking-[0.3em] flex items-center gap-4 hover:scale-105 transition-all shadow-2xl active:scale-95">
+                      Get Started <ArrowRight className="h-5 w-5" />
+                    </button>
+                    <button onClick={() => document.getElementById('syllabus-section')?.scrollIntoView({ behavior: 'smooth' })} className="bg-white dark:bg-transparent text-pakgreen dark:text-white border-2 border-pakgreen dark:border-gold/30 px-12 py-6 rounded-2xl font-black uppercase text-[11px] tracking-[0.3em] hover:bg-pakgreen/5 dark:hover:bg-gold-light/10 transition-all active:scale-95">
+                      Explore Syllabus
+                    </button>
+                  </div>
+                </div>
+
+                <div className="hidden lg:flex items-center justify-center relative">
+                   <div className="relative w-full aspect-square max-w-lg bg-pakgreen rounded-[60px] border-4 border-gold/20 shadow-2xl overflow-hidden p-2 group">
+                      <div className="w-full h-full bg-zinc-50 dark:bg-pakgreen-deepest rounded-[56px] flex flex-col p-12 relative overflow-hidden transition-all group-hover:scale-105">
+                         <div className="absolute inset-0 islamic-pattern opacity-10"></div>
+                         <div className="flex items-center justify-between mb-16 relative z-10">
+                            <div className="flex items-center gap-4">
+                               <div className="h-14 w-14 rounded-2xl bg-gold flex items-center justify-center shadow-xl"><FileText className="h-7 w-7 text-pakgreen" /></div>
+                               <span className="text-sm font-black uppercase tracking-[0.3em] text-pakgreen dark:text-gold-light">Law GAT 2026</span>
+                            </div>
+                            <div className="px-4 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-[9px] font-black uppercase tracking-widest">Active Enrollment</div>
+                         </div>
+                         <div className="space-y-8 relative z-10">
+                            <div className="h-4 bg-pakgreen/10 dark:bg-gold/10 w-3/4 rounded-full"></div>
+                            <div className="h-4 bg-pakgreen/5 dark:bg-gold/5 w-full rounded-full"></div>
+                            <div className="h-4 bg-pakgreen/5 dark:bg-gold/5 w-1/2 rounded-full"></div>
+                         </div>
+                         <div className="mt-auto relative z-10">
+                            <Star className="h-16 w-16 text-gold/10 absolute -bottom-4 -right-4" />
+                         </div>
+                      </div>
+                   </div>
+                </div>
+              </div>
+            </section>
+
+            <div className="bg-pakgreen dark:bg-pakgreen-dark py-4 border-y border-gold/20">
+               <div className="max-w-7xl mx-auto px-6 flex flex-wrap justify-around items-center gap-8 text-[10px] font-black text-gold-light uppercase tracking-[0.4em]">
+                  <span className="flex items-center gap-3 opacity-90"><ShieldCheck className="h-4 w-4" /> National Integrity</span>
+                  <span className="flex items-center gap-3 opacity-90"><Award className="h-4 w-4" /> Merit Based Excellence</span>
+                  <span className="flex items-center gap-3 opacity-90"><Star className="h-4 w-4" /> Higher Education Approved</span>
+               </div>
             </div>
 
-            <aside className="lg:col-span-4 space-y-8 order-1 lg:order-2">
-              <div className="bg-white p-6 rounded-md shadow-sm border border-gray-200">
-                <h3 className="text-[10px] font-black text-[#1a2b48] uppercase mb-5 border-b-2 border-gray-100 pb-3 block tracking-widest">Search Our Library</h3>
-                <div className="relative flex">
-                  <input 
-                    type="text" 
-                    placeholder="E.g. LLB Notes..." 
-                    className="w-full bg-[#f9f9f9] border border-gray-200 py-3.5 px-4 text-xs font-medium focus:outline-none focus:border-[#1a2b48] transition-all placeholder:text-gray-400" 
-                  />
-                  <button className="bg-[#1a2b48] text-white px-5 py-2 hover:bg-black transition-colors shrink-0 flex items-center justify-center">
-                    <Search className="h-4 w-4" />
-                  </button>
-                </div>
-              </div>
-
-              <div className="bg-[#1a2b48] text-white p-7 rounded-md shadow-xl border-l-[6px] border-blue-400 relative overflow-hidden group">
-                <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:scale-110 transition-transform">
-                  <BrainCircuit className="h-24 w-24" />
-                </div>
-                <h3 className="text-sm md:text-base font-black uppercase mb-2 tracking-tight">AI Academic Tutor</h3>
-                <p className="text-[10px] md:text-xs text-blue-100/80 mb-6 font-medium leading-relaxed uppercase tracking-wider">Get instant summaries of complex legal topics.</p>
-                <div className="space-y-3 mb-4 relative z-10">
-                  {["LAT 2026 Overview", "Contract Act Basics", "LLB Semester Roadmap"].map((topic) => (
-                    <button 
-                      key={topic}
-                      onClick={() => handleAiHelp(topic)} 
-                      className="w-full text-left bg-white/5 hover:bg-white/10 p-3.5 rounded text-[10px] font-bold uppercase border border-white/10 transition-all active:scale-[0.98] flex items-center justify-between"
-                    >
-                      {topic}
-                      <ChevronRight className="h-3 w-3 opacity-30" />
-                    </button>
-                  ))}
-                </div>
-                {aiSummary && (
-                  <div className="mt-6 p-5 bg-black/40 border border-white/10 rounded-md text-[11px] leading-relaxed animate-in slide-in-from-top-4 shadow-inner">
-                    <div className="prose prose-invert prose-sm">
-                      {aiSummary}
+            <div className="max-w-7xl mx-auto w-full px-6 sm:px-12 py-24 lg:py-32">
+              <div className="flex flex-col lg:grid lg:grid-cols-12 gap-20">
+                <div className="lg:col-span-12 space-y-24">
+                  <section>
+                    <div className="flex items-center justify-between mb-12">
+                       <h2 className="text-2xl sm:text-4xl font-black text-pakgreen dark:text-white uppercase tracking-tighter flex items-center gap-5">
+                          <Megaphone className="h-8 w-8 text-gold-light" /> Institutional Gazette
+                       </h2>
                     </div>
-                    <button onClick={() => setAiSummary(null)} className="mt-4 block text-blue-300 hover:text-white uppercase font-black text-[9px] tracking-[0.2em] transition-colors">Close Assistant</button>
-                  </div>
-                )}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+                      {(notifications || []).filter(n => n.type === 'News' || n.type === 'Test Date').slice(0, 3).map(n => (
+                        <div key={n.id} className="group bg-white dark:bg-pakgreen-dark/40 rounded-[32px] border border-pakgreen/5 dark:border-gold/10 hover:border-gold/40 transition-all cursor-pointer p-10 sm:p-14 shadow-xl hover:shadow-gold/5" onClick={() => handleNavigate('notifications')}>
+                          <div className="flex justify-between items-start mb-6">
+                            <span className="px-4 py-1 rounded-lg bg-pakgreen/5 dark:bg-gold-light/10 text-pakgreen dark:text-gold-light text-[9px] font-black uppercase tracking-widest">{n.type}</span>
+                            <span className="text-[9px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest">{n.date}</span>
+                          </div>
+                          <h3 className="text-xl sm:text-2xl font-black text-pakgreen dark:text-zinc-100 mb-6 group-hover:text-gold-light transition-colors tracking-tight">{n.title}</h3>
+                          <p className="text-zinc-500 dark:text-zinc-400 text-sm leading-relaxed line-clamp-2 font-medium">{n.content}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+
+                  <section id="syllabus-section">
+                    <h3 className="text-4xl sm:text-6xl font-black text-pakgreen dark:text-white uppercase tracking-tighter mb-16 border-l-8 border-gold-light pl-10">Preparation Tracks</h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+                      {(categories || []).map(sub => (
+                        <div key={sub.id} onClick={() => handleNavigate('category', sub.id)} className="group p-12 bg-white dark:bg-pakgreen-dark/30 border border-pakgreen/10 dark:border-gold/10 rounded-[40px] hover:border-gold hover:bg-pakgreen/5 dark:hover:bg-gold/5 transition-all cursor-pointer shadow-2xl flex flex-col min-h-[250px] relative overflow-hidden">
+                          <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity">
+                             <BookOpen className="h-24 w-24 text-pakgreen dark:text-gold-light" />
+                          </div>
+                          <h3 className="font-black text-pakgreen dark:text-gold-light group-hover:text-gold-light transition-colors text-lg uppercase tracking-tight mb-6">{sub.name}</h3>
+                          <p className="text-[11px] text-zinc-500 dark:text-zinc-400 leading-relaxed font-bold uppercase tracking-widest line-clamp-3">{sub.description}</p>
+                          <div className="mt-auto flex items-center gap-3 text-[10px] font-black uppercase text-pakgreen dark:text-gold-light opacity-0 group-hover:opacity-100 transition-all">
+                             View Syllabus <ChevronRight className="h-4 w-4" />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+
+                  {/* Wall of Excellence / Approved Feedback */}
+                  {approvedFeedbacks.length > 0 && (
+                    <section>
+                       <h3 className="text-2xl sm:text-4xl font-black text-pakgreen dark:text-white uppercase tracking-tighter mb-12 flex items-center gap-4">
+                          <Award className="h-8 w-8 text-gold-light" /> Wall of Excellence
+                       </h3>
+                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+                         {approvedFeedbacks.map(f => (
+                           <div key={f.id} className="bg-white dark:bg-pakgreen-dark/40 p-10 rounded-[40px] border border-gold/10 shadow-2xl relative group hover:border-gold-light/40 transition-all">
+                             <Quote className="h-10 w-10 text-gold-light/10 absolute top-8 right-8 group-hover:text-gold-light/20 transition-all" />
+                             <div className="flex items-center gap-4 mb-6">
+                               <div className="h-12 w-12 rounded-2xl bg-gold-light/10 flex items-center justify-center font-black text-gold-light text-xl border border-gold/20">
+                                 {f.studentName.charAt(0)}
+                               </div>
+                               <div>
+                                 <h4 className="text-sm font-black text-pakgreen dark:text-zinc-100 uppercase tracking-tight">{f.studentName}</h4>
+                                 <p className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">{f.quizTitle}</p>
+                               </div>
+                             </div>
+                             <p className="text-zinc-600 dark:text-zinc-300 text-[13px] leading-relaxed italic font-medium">"{f.comment}"</p>
+                           </div>
+                         ))}
+                       </div>
+                    </section>
+                  )}
+                </div>
               </div>
-            </aside>
+            </div>
           </div>
         )}
 
         {state.view === 'category' && (
-          <div className="max-w-6xl mx-auto py-6 md:py-10">
-            <div className="text-center mb-10 md:mb-16">
-              <h2 className="text-xl md:text-3xl font-black text-[#1a2b48] uppercase tracking-tighter border-b-4 border-[#1a2b48] pb-4 inline-block px-4">
-                {state.selectedSubCategory ? categories.find(s => s.id === state.selectedSubCategory)?.name : 'Study Modules'}
-              </h2>
-            </div>
-            
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 md:gap-16">
-              {/* Online Tests Column */}
-              <div className="space-y-6">
-                <h3 className="text-[11px] font-black text-[#1a2b48] uppercase tracking-[0.2em] mb-4 flex items-center gap-2 border-l-4 border-[#1a2b48] pl-3">
-                   <BrainCircuit className="h-4 w-4" /> Interactive Practice Tests
-                </h3>
-                <div className="space-y-4">
-                  {quizzes.filter(q => q.subCategoryId === (state.selectedSubCategory || '')).length > 0 ? (
-                    quizzes.filter(q => q.subCategoryId === (state.selectedSubCategory || '')).map((q, idx) => (
-                      <div 
-                        key={q.id} 
-                        onClick={() => handleNavigate('quiz', undefined, q.id)} 
-                        className="bg-white p-5 rounded-md border border-gray-200 shadow-sm hover:shadow-md transition-all cursor-pointer flex justify-between items-center group active:scale-[0.98]"
-                      >
-                        <div className="flex items-center gap-4">
-                          <div className="h-10 w-10 bg-[#f9f9f9] rounded flex items-center justify-center text-[#1a2b48] font-black group-hover:bg-[#1a2b48] group-hover:text-white transition-all shrink-0">
-                            {idx + 1}
-                          </div>
-                          <h3 className="font-bold text-gray-800 uppercase text-xs md:text-sm tracking-tight">{q.title}</h3>
-                        </div>
-                        <ChevronRight className="h-5 w-5 text-gray-300 group-hover:text-[#1a2b48] shrink-0" />
-                      </div>
-                    ))
-                  ) : (
-                    <div className="text-center py-16 bg-white rounded-md border border-dashed border-gray-200">
-                      <p className="text-gray-400 text-[10px] font-bold uppercase tracking-widest">Test repository pending update.</p>
-                    </div>
-                  )}
+          <div className="max-w-7xl mx-auto px-6 sm:px-12 py-12 animate-in fade-in duration-500">
+             <div className="mb-12 border-b border-gold/20 pb-8 flex justify-between items-end">
+                <div>
+                   <h2 className="text-3xl font-black text-pakgreen dark:text-gold-light uppercase tracking-tighter">{categories.find(c => c.id === state.selectedSubCategory)?.name || 'Study Track'}</h2>
+                   <p className="text-[10px] text-zinc-500 dark:text-zinc-400 font-black uppercase tracking-[0.4em] mt-2">National Standardized Curriculum</p>
                 </div>
-              </div>
+                <button onClick={() => handleNavigate('home')} className="text-xs font-black text-pakgreen dark:text-gold-light uppercase hover:underline">Back to Campus</button>
+             </div>
 
-              {/* PDF Notes Column */}
-              <div className="space-y-6">
-                <h3 className="text-[11px] font-black text-[#1a2b48] uppercase tracking-[0.2em] mb-4 flex items-center gap-2 border-l-4 border-[#1a2b48] pl-3">
-                   <FileText className="h-4 w-4" /> Comprehensive Notes
-                </h3>
-                <div className="space-y-4">
-                  {notes.filter(n => n.subCategoryId === (state.selectedSubCategory || '')).length > 0 ? (
-                    notes.filter(n => n.subCategoryId === (state.selectedSubCategory || '')).map((n) => (
-                      <div 
-                        key={n.id} 
-                        onClick={() => setViewingNote(n)} 
-                        className="bg-white p-5 rounded-md border border-gray-200 shadow-sm hover:shadow-md transition-all cursor-pointer flex justify-between items-center group active:scale-[0.98]"
-                      >
-                        <div className="flex items-center gap-4 truncate mr-2">
-                          <div className="h-10 w-10 bg-red-50 rounded flex items-center justify-center text-red-600 group-hover:bg-red-600 group-hover:text-white transition-all shrink-0">
-                             <FileText className="h-5 w-5" />
-                          </div>
-                          <div className="truncate">
-                            <h3 className="font-bold text-gray-800 uppercase text-xs md:text-sm tracking-tight truncate">{n.title}</h3>
-                            <p className="text-[9px] text-gray-400 uppercase font-black mt-1">PDF Study Resource</p>
-                          </div>
-                        </div>
-                        <Search className="h-5 w-5 text-gray-300 group-hover:text-[#1a2b48] shrink-0" />
+             <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
+                <div className="lg:col-span-8 space-y-12">
+                   <section>
+                      <h3 className="text-xl font-black text-pakgreen dark:text-white uppercase mb-8 flex items-center gap-3">
+                         <ListChecks className="h-6 w-6 text-gold-light" /> Mock Assessments
+                      </h3>
+                      <div className="grid grid-cols-1 gap-4">
+                         {(quizzes || []).filter(q => q.subCategoryId === state.selectedSubCategory).map(q => (
+                            <div key={q.id} onClick={() => handleNavigate('quiz', undefined, q.id)} className="bg-white dark:bg-pakgreen-dark/30 border border-pakgreen/10 dark:border-gold/10 p-6 rounded-2xl flex justify-between items-center hover:border-gold-light transition-all cursor-pointer group shadow-lg">
+                               <div className="flex items-center gap-4">
+                                  <div className="h-12 w-12 rounded-xl bg-pakgreen/5 dark:bg-gold-light/5 flex items-center justify-center text-pakgreen dark:text-gold-light group-hover:bg-gold-light group-hover:text-pakgreen transition-all">
+                                     <FileText className="h-5 w-5" />
+                                  </div>
+                                  <div>
+                                     <h4 className="font-black text-sm uppercase tracking-tight text-zinc-800 dark:text-zinc-100">{q.title}</h4>
+                                     <p className="text-[9px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest">{q.questions.length} Items</p>
+                                  </div>
+                               </div>
+                               <ArrowRight className="h-5 w-5 text-gold-light opacity-0 group-hover:opacity-100 transition-all translate-x-4 group-hover:translate-x-0" />
+                            </div>
+                         ))}
                       </div>
-                    ))
-                  ) : (
-                    <div className="text-center py-16 bg-white rounded-md border border-dashed border-gray-200">
-                      <p className="text-gray-400 text-[10px] font-bold uppercase tracking-widest">No documents found.</p>
-                    </div>
-                  )}
+                   </section>
+
+                   <section>
+                      <h3 className="text-xl font-black text-pakgreen dark:text-white uppercase mb-8 flex items-center gap-3">
+                         <BookOpen className="h-6 w-6 text-gold-light" /> Study Repository
+                      </h3>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                         {(notes || []).filter(n => n.subCategoryId === state.selectedSubCategory).map(n => (
+                            <div key={n.id} onClick={() => setViewingNote(n)} className="bg-white dark:bg-pakgreen-dark/30 border border-pakgreen/10 dark:border-gold/10 p-6 rounded-2xl flex flex-col gap-4 hover:border-gold-light transition-all cursor-pointer shadow-lg group">
+                               <div className="flex justify-between items-start">
+                                  <div className="h-10 w-10 rounded-lg bg-red-500/10 flex items-center justify-center text-red-500">
+                                     <FileText className="h-5 w-5" />
+                                  </div>
+                                  <span className="text-[8px] font-black uppercase text-zinc-400 dark:text-zinc-500">PDF Document</span>
+                               </div>
+                               <h4 className="font-black text-xs uppercase tracking-tight text-zinc-800 dark:text-zinc-100 line-clamp-1">{n.title}</h4>
+                            </div>
+                         ))}
+                      </div>
+                   </section>
                 </div>
-              </div>
-            </div>
+
+                <aside className="lg:col-span-4">
+                   <div className="bg-white dark:bg-pakgreen-dark/50 p-8 rounded-3xl border border-pakgreen/10 dark:border-gold/10 shadow-2xl">
+                      <h3 className="font-black text-pakgreen dark:text-gold-light uppercase text-sm mb-6 flex items-center gap-2">
+                         <GraduationCap className="h-5 w-5" /> Track Overview
+                      </h3>
+                      <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed font-medium uppercase tracking-tight mb-8">
+                         {categories.find(c => c.id === state.selectedSubCategory)?.description || "Institutional preparation track for professional excellence."}
+                      </p>
+                      <div className="space-y-4">
+                         <div className="p-4 bg-zinc-50 dark:bg-pakgreen-deepest/50 rounded-xl border border-zinc-200 dark:border-gold/5 flex items-center gap-4">
+                            <Clock className="h-4 w-4 text-gold-light" />
+                            <span className="text-[9px] font-black uppercase tracking-widest text-zinc-600 dark:text-zinc-400">Lifetime Access</span>
+                         </div>
+                         <div className="p-4 bg-zinc-50 dark:bg-pakgreen-deepest/50 rounded-xl border border-zinc-200 dark:border-gold/5 flex items-center gap-4">
+                            <ShieldCheck className="h-4 w-4 text-gold-light" />
+                            <span className="text-[9px] font-black uppercase tracking-widest text-zinc-600 dark:text-zinc-400">Verified Content</span>
+                         </div>
+                      </div>
+                   </div>
+                </aside>
+             </div>
           </div>
         )}
 
         {state.view === 'quiz' && activeQuiz && (
-          <div className="py-2 md:py-8 max-w-4xl mx-auto w-full">
-            <QuizModule quiz={activeQuiz} onComplete={(score) => console.log("Quiz completed:", score)} />
+          <div className="py-12">
+            <QuizModule 
+              quiz={activeQuiz} 
+              categories={categories}
+              onComplete={(score) => {
+                console.log('Quiz finished with score:', score);
+                loadAllData();
+              }}
+            />
           </div>
         )}
 
         {state.view === 'notifications' && (
-          <div className="max-w-4xl mx-auto py-6 md:py-10">
-             <h2 className="text-xl md:text-3xl font-black text-[#1a2b48] uppercase tracking-tighter mb-8 border-b-4 border-[#1a2b48] pb-4 inline-block">Notice Board</h2>
-             <div className="space-y-6">
-               {notifications.map(n => (
-                 <div key={n.id} className="bg-white p-6 md:p-10 rounded-md shadow-sm border border-gray-200 group relative">
-                   <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
-                     <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${n.type === 'Result' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'}`}>{n.type}</span>
-                     <span className="text-[10px] text-gray-400 font-black uppercase tracking-wider">{n.date}</span>
-                   </div>
-                   <h3 className="text-lg md:text-2xl font-bold text-gray-900 mb-4 group-hover:text-[#1a2b48] transition-colors leading-tight">{n.title}</h3>
-                   <p className="text-gray-600 leading-relaxed text-sm md:text-base mb-8 whitespace-pre-wrap">{n.content}</p>
-                   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-8 pt-6 border-t border-gray-50">
-                     <button className="w-full sm:w-auto bg-[#1a2b48] text-white px-8 py-3.5 rounded text-[10px] font-bold uppercase tracking-[0.2em] shadow-lg hover:bg-black transition-all flex items-center justify-center gap-3 active:scale-95">
-                       <Download className="h-4 w-4" /> Download PDF
-                     </button>
-                     <ShareBar title={n.title} />
-                   </div>
-                 </div>
-               ))}
-               {notifications.length === 0 && (
-                 <div className="text-center py-24 bg-white rounded-md border border-dashed border-gray-200">
-                    <p className="text-gray-400 font-bold uppercase text-[10px] tracking-widest">No new notifications at this time.</p>
-                 </div>
-               )}
-             </div>
+           <div className="max-w-4xl mx-auto px-6 py-12 animate-in slide-in-from-bottom-6 duration-700">
+              <h2 className="text-4xl font-black text-pakgreen dark:text-gold-light uppercase tracking-tighter mb-12 flex items-center gap-4">
+                 <Megaphone className="h-10 w-10 text-gold-light" /> Institutional Gazette
+              </h2>
+              <div className="space-y-8">
+                 {(notifications || []).map(n => (
+                    <div key={n.id} className="bg-white dark:bg-pakgreen-dark/40 border-l-8 border-gold-light p-10 rounded-r-3xl shadow-2xl">
+                       <div className="flex justify-between items-center mb-6">
+                          <span className="text-[10px] font-black text-gold-light uppercase tracking-[0.3em]">{n.type}</span>
+                          <span className="text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase">{n.date}</span>
+                       </div>
+                       <h3 className="text-2xl font-black text-pakgreen dark:text-white mb-6 uppercase tracking-tight">{n.title}</h3>
+                       <p className="text-zinc-600 dark:text-zinc-400 text-sm leading-relaxed font-medium">{n.content}</p>
+                    </div>
+                 ))}
+              </div>
+           </div>
+        )}
+
+        {state.view === 'admin' && (
+          <div className="max-w-7xl mx-auto px-6 sm:px-12 py-12 animate-in fade-in duration-500">
+            <div className="flex justify-between items-center mb-12">
+              <div className="flex items-center gap-4">
+                <div className="bg-pakgreen p-3 rounded-xl border border-gold/30">
+                  <Settings className="h-6 w-6 text-white" />
+                </div>
+                <h2 className="text-3xl font-black text-pakgreen dark:text-gold-light uppercase tracking-tighter">Institutional Console</h2>
+              </div>
+              <button onClick={exitAdminConsole} className="flex items-center gap-2 text-zinc-500 hover:text-pakgreen dark:hover:text-gold-light transition-colors font-black text-[10px] uppercase tracking-widest">
+                <LogOut className="h-4 w-4" /> Exit Console
+              </button>
+            </div>
+            <AdminPanel 
+              notifications={notifications}
+              categories={categories}
+              quizzes={quizzes}
+              onAddNotification={async (n) => {
+                const updated = await dataService.addNotification(n);
+                setNotifications(updated);
+              }}
+              onDeleteNotification={async (id) => {
+                const updated = await dataService.deleteNotification(id);
+                setNotifications(updated);
+              }}
+              onAddCategory={async (c) => {
+                const updated = await dataService.addCategory(c);
+                setCategories(updated);
+              }}
+              onDeleteCategory={async (id) => {
+                const updated = await dataService.deleteCategory(id);
+                setCategories(updated);
+              }}
+              onAddQuiz={async (q) => {
+                const updated = await dataService.addQuiz(q);
+                setQuizzes(updated);
+              }}
+              onDeleteQuiz={async (id) => {
+                const updated = await dataService.deleteQuiz(id);
+                setQuizzes(updated);
+              }}
+            />
           </div>
         )}
       </main>
 
-      <footer className="bg-[#111] text-white pt-20 pb-10 mt-16">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-12 mb-16">
-            <div className="col-span-1 lg:col-span-2">
-              <div className="flex items-center gap-3 mb-8">
-                 <div className="bg-white p-2 rounded shadow-lg"><BookOpen className="h-6 w-6 md:h-8 md:w-8 text-[#1a2b48]" /></div>
-                 <h4 className="text-xl md:text-2xl font-black uppercase tracking-tighter">Professional Academy</h4>
+      <footer className="bg-white dark:bg-pakgreen-dark text-pakgreen dark:text-white border-t-4 border-gold-light pt-24 pb-12 mt-auto transition-colors islamic-pattern shadow-[0_-20px_50px_rgba(0,0,0,0.1)] dark:shadow-[0_-20px_50px_rgba(0,0,0,0.4)]">
+        <div className="max-w-7xl mx-auto px-6 sm:px-12 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-16 mb-24">
+          <div className="flex flex-col gap-8">
+            <div className="flex items-center gap-4">
+              <div className="bg-pakgreen p-3 rounded-xl border border-gold/30">
+                <BookOpen className="h-8 w-8 text-white" />
               </div>
-              <p className="text-gray-400 text-[11px] md:text-xs leading-relaxed font-medium max-w-md uppercase tracking-wide opacity-80">
-                A premium educational initiative focused on Law students and admission test candidates in Pakistan. We provide high-quality notes, automated testing, and latest news updates for academic excellence.
-              </p>
+              <span className="text-2xl font-black uppercase tracking-tighter text-pakgreen dark:text-gold-light">Professional Academy</span>
             </div>
-            <div>
-              <h5 className="text-[11px] font-black uppercase tracking-[0.3em] mb-8 text-blue-400">Navigation</h5>
-              <ul className="space-y-4 text-[10px] font-bold text-gray-500 uppercase tracking-widest">
-                <li className="hover:text-white cursor-pointer transition-colors flex items-center gap-2" onClick={() => handleNavigate('home')}><ChevronRight className="h-3 w-3" /> Home Page</li>
-                <li className="hover:text-white cursor-pointer transition-colors flex items-center gap-2" onClick={() => handleNavigate('category', 'lat')}><ChevronRight className="h-3 w-3" /> Law Series</li>
-                <li className="hover:text-white cursor-pointer transition-colors flex items-center gap-2" onClick={() => handleNavigate('notifications')}><ChevronRight className="h-3 w-3" /> Notifications</li>
-                <li className="hover:text-white cursor-pointer transition-colors flex items-center gap-2" onClick={() => { window.location.hash = '#admin'; }}><ChevronRight className="h-3 w-3" /> Admin Access</li>
-              </ul>
-            </div>
-            <div>
-              <h5 className="text-[11px] font-black uppercase tracking-[0.3em] mb-8 text-blue-400">Reach Us</h5>
-              <div className="space-y-5">
-                 <a href="tel:+923001234567" className="text-gray-500 hover:text-white text-[11px] font-bold uppercase tracking-widest block transition-colors flex items-center gap-3">
-                   <Phone className="h-4 w-4" /> +92 300 1234567
-                 </a>
-                 <a href="mailto:info@mmonlineacademy.com" className="text-gray-500 hover:text-white text-[11px] font-bold uppercase tracking-widest block transition-colors flex items-center gap-3">
-                   <Mail className="h-4 w-4" /> Support Email
-                 </a>
-                 <div className="flex gap-5 pt-4">
-                    <Facebook className="h-5 w-5 text-gray-600 hover:text-blue-500 cursor-pointer transition-colors" />
-                    <Twitter className="h-5 w-5 text-gray-600 hover:text-blue-400 cursor-pointer transition-colors" />
-                    <Youtube className="h-5 w-5 text-gray-600 hover:text-red-500 cursor-pointer transition-colors" />
-                 </div>
-              </div>
+            <p className="text-zinc-500 dark:text-zinc-400 text-[11px] font-black leading-relaxed max-w-xs uppercase tracking-tight">
+              MM ONLINE: Bridging the gap between national ambition and elite academic standard across Pakistan.
+            </p>
+            <div className="flex flex-wrap gap-4">
+               <a href="https://www.facebook.com/MirpurkhasAliTalpurTown/" target="_blank" rel="noopener noreferrer" className="p-2.5 bg-zinc-100 dark:bg-pakgreen-deepest border border-zinc-200 dark:border-gold/10 rounded-xl hover:text-gold-light transition-all text-pakgreen dark:text-gold-light"><Facebook className="h-5 w-5" /></a>
+               <a href="https://www.tiktok.com/@majid.maqsood8" target="_blank" rel="noopener noreferrer" className="p-2.5 bg-zinc-100 dark:bg-pakgreen-deepest border border-zinc-200 dark:border-gold/10 rounded-xl hover:text-gold-light transition-all text-pakgreen dark:text-gold-light"><Music className="h-5 w-5" /></a>
+               <a href="https://www.instagram.com/majid.maqsood01/?hl=en" target="_blank" rel="noopener noreferrer" className="p-2.5 bg-zinc-100 dark:bg-pakgreen-deepest border border-zinc-200 dark:border-gold/10 rounded-xl hover:text-gold-light transition-all text-pakgreen dark:text-gold-light"><Instagram className="h-5 w-5" /></a>
+               <a href="https://www.linkedin.com/in/majid-maqsood-633444374/" target="_blank" rel="noopener noreferrer" className="p-2.5 bg-zinc-100 dark:bg-pakgreen-deepest border border-zinc-200 dark:border-gold/10 rounded-xl hover:text-gold-light transition-all text-pakgreen dark:text-gold-light"><Linkedin className="h-5 w-5" /></a>
             </div>
           </div>
-          <div className="border-t border-white/5 pt-10 flex flex-col md:flex-row justify-between items-center gap-8 text-[9px] md:text-[10px] font-bold text-gray-600 uppercase tracking-[0.2em]">
-            <p className="text-center md:text-left">© 2026 PROFESSIONAL ACADEMY (MM ONLINE). ALL RIGHTS RESERVED. PK LAW NOTES STYLE.</p>
-            <div className="flex gap-8">
-              <span className="hover:text-white cursor-pointer transition-colors">PRIVACY</span>
-              <span className="hover:text-white cursor-pointer transition-colors">TERMS</span>
-              <span className="hover:text-white cursor-pointer transition-colors">SITEMAP</span>
+
+          <div className="flex flex-col gap-8">
+            <h4 className="text-[12px] font-black uppercase tracking-[0.4em] text-pakgreen dark:text-gold-light border-l-4 border-gold-light pl-4">Legal Tracks</h4>
+            <div className="flex flex-col gap-5">
+              <button onClick={() => handleNavigate('category', 'lat')} className="text-zinc-500 dark:text-zinc-400 hover:text-gold-light text-[11px] font-black uppercase tracking-widest text-left transition-all hover:translate-x-2 flex items-center gap-3">
+                <ChevronRight className="h-4 w-4 text-gold-light" /> LAT Series
+              </button>
+              <button onClick={() => handleNavigate('category', 'law-gat')} className="text-zinc-500 dark:text-zinc-400 hover:text-gold-light text-[11px] font-black uppercase tracking-widest text-left transition-all hover:translate-x-2 flex items-center gap-3">
+                <ChevronRight className="h-4 w-4 text-gold-light" /> Law GAT Preparation
+              </button>
+              <button onClick={() => handleNavigate('category', 'llb-s1')} className="text-zinc-500 dark:text-zinc-400 hover:text-gold-light text-[11px] font-black uppercase tracking-widest text-left transition-all hover:translate-x-2 flex items-center gap-3">
+                <ChevronRight className="h-4 w-4 text-gold-light" /> LLB Coursework
+              </button>
             </div>
+          </div>
+
+          <div className="flex flex-col gap-8">
+            <h4 className="text-[12px] font-black uppercase tracking-[0.4em] text-pakgreen dark:text-gold-light border-l-4 border-gold-light pl-4">Connect</h4>
+            <div className="flex flex-col gap-6">
+              <a href="tel:03182990927" className="flex items-center gap-4 group">
+                 <div className="p-3 bg-zinc-100 dark:bg-pakgreen-deepest rounded-2xl group-hover:bg-gold-light transition-colors border border-pakgreen/5 dark:border-gold/20"><Phone className="h-5 w-5 text-pakgreen dark:text-gold-light group-hover:text-pakgreen" /></div>
+                 <div>
+                    <span className="block text-[8px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-widest mb-1">Call Center</span>
+                    <span className="block text-[11px] font-black text-pakgreen dark:text-zinc-200 uppercase tracking-widest">03182990927</span>
+                 </div>
+              </a>
+              <a href="mailto:mmonlineacademy26@gmail.com" className="flex items-center gap-4 group">
+                 <div className="p-3 bg-zinc-100 dark:bg-pakgreen-deepest rounded-2xl group-hover:bg-gold-light transition-colors border border-pakgreen/5 dark:border-gold/20"><Mail className="h-5 w-5 text-pakgreen dark:text-gold-light group-hover:text-pakgreen" /></div>
+                 <div>
+                    <span className="block text-[8px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-widest mb-1">Electronic Mail</span>
+                    <span className="block text-[11px] font-black text-pakgreen dark:text-zinc-200 uppercase tracking-widest">mmonlineacademy26@gmail.com</span>
+                 </div>
+              </a>
+            </div>
+          </div>
+          
+          <div className="flex flex-col gap-8">
+             <h4 className="text-[12px] font-black uppercase tracking-[0.4em] text-pakgreen dark:text-gold-light border-l-4 border-gold-light pl-4">Identity</h4>
+             <div className="bg-pakgreen/5 dark:bg-pakgreen-deepest p-8 rounded-3xl border border-gold/10 flex flex-col items-center justify-center gap-6">
+                <Star className="h-12 w-12 text-gold-light fill-current" />
+                <span className="text-[10px] font-black uppercase text-center tracking-[0.3em] text-pakgreen dark:text-zinc-300">Proudly Dedicated to Pakistani Academic Excellence</span>
+             </div>
           </div>
         </div>
+
+        <div className="max-w-7xl mx-auto px-6 sm:px-12 border-t border-pakgreen/10 dark:border-gold/10 pt-12 flex flex-col md:flex-row justify-between items-center gap-8">
+           <div className="flex items-center gap-6">
+              <div className="p-2 bg-pakgreen/10 dark:bg-gold-light/10 border border-gold/20 rounded-lg">
+                 <ShieldCheck className="h-5 w-5 text-pakgreen dark:text-gold-light" />
+              </div>
+              <p className="text-[10px] font-black text-zinc-500 dark:text-zinc-500 uppercase tracking-[0.4em]">© 2026 PROFESSIONAL ACADEMY — THE NATIONAL STANDARD</p>
+           </div>
+           <div className="flex items-center gap-8">
+              <span className="text-[9px] font-black text-zinc-400 uppercase tracking-widest cursor-pointer hover:text-gold-light">Privacy</span>
+              <span className="text-[9px] font-black text-zinc-400 uppercase tracking-widest cursor-pointer hover:text-gold-light">Terms</span>
+              <div className="px-5 py-2 rounded-full bg-gold/10 border border-gold/30 text-gold-light text-[9px] font-black uppercase tracking-[0.3em]">
+                Excellence Guaranteed
+              </div>
+           </div>
+        </div>
       </footer>
+    </div>
+  );
+};
+
+const PdfViewer: React.FC<{ note: StudyNote; onClose: () => void }> = ({ note, onClose }) => {
+  return (
+    <div className="fixed inset-0 z-[200] bg-black/95 backdrop-blur-md flex flex-col animate-in fade-in duration-300">
+      <div className="p-4 bg-pakgreen dark:bg-pakgreen-dark flex justify-between items-center border-b border-gold/20">
+        <h3 className="text-white dark:text-gold-light font-black text-xs uppercase truncate pr-4">{note.title}</h3>
+        <button onClick={onClose} className="text-white hover:text-gold-light transition-colors"><X className="h-6 w-6" /></button>
+      </div>
+      <div className="flex-grow bg-zinc-100 relative overflow-hidden">
+        <iframe src={note.url} className="w-full h-full border-none" title={note.title} />
+      </div>
     </div>
   );
 };

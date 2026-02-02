@@ -1,6 +1,6 @@
 
-import React, { useState } from 'react';
-import { Search, Menu, X, BookOpen, Facebook, Twitter, Youtube, Phone, Mail, ChevronRight } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Search, Menu, X, BookOpen, Facebook, Twitter, Youtube, Phone, Mail, ChevronRight, Sun, Moon, Star, Instagram, Linkedin } from 'lucide-react';
 import { AppState } from '../types';
 
 interface NavbarProps {
@@ -9,16 +9,30 @@ interface NavbarProps {
 
 const Navbar: React.FC<NavbarProps> = ({ onNavigate }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [mobileSearch, setMobileSearch] = useState('');
+  const [theme, setTheme] = useState<'dark' | 'light'>(
+    (localStorage.getItem('theme') as 'dark' | 'light') || 'light'
+  );
+
+  useEffect(() => {
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+    localStorage.setItem('theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme(prev => (prev === 'dark' ? 'light' : 'dark'));
+  };
 
   const navItems = [
     { label: 'Home', view: 'home' as const },
     { label: 'LAT Series', view: 'category' as const, subId: 'lat' },
     { label: 'Law GAT Series', view: 'category' as const, subId: 'law-gat' },
     { label: 'LLB Notes', view: 'category' as const, subId: 'llb-s1' },
-    { label: 'News', view: 'notifications' as const },
-    { label: 'Results', view: 'notifications' as const },
-    { label: 'Contact Us', view: 'home' as const }
+    { label: 'Gazette', view: 'notifications' as const },
+    { label: 'Contact', view: 'home' as const }
   ];
 
   const handleNavClick = (view: AppState['view'], subId?: string) => {
@@ -27,66 +41,70 @@ const Navbar: React.FC<NavbarProps> = ({ onNavigate }) => {
   };
 
   return (
-    <div className="flex flex-col w-full bg-white relative shadow-sm border-b border-gray-100">
-      {/* Top Info Bar - Hidden on small screens */}
-      <div className="bg-gray-50 border-b border-gray-100 hidden md:block">
-        <div className="max-w-7xl mx-auto px-4 py-2 flex justify-between items-center text-[10px] font-bold text-gray-500 uppercase tracking-widest">
+    <div className="flex flex-col w-full bg-white dark:bg-pakgreen-deepest relative shadow-sm border-b border-pakgreen/10 dark:border-gold/10 transition-colors z-[100]">
+      {/* Top Info Bar - Prestigious Green */}
+      <div className="bg-pakgreen dark:bg-pakgreen-dark border-b border-gold/30 hidden md:block">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 flex justify-between items-center text-[10px] font-black text-white uppercase tracking-widest">
           <div className="flex items-center gap-4">
-            <span className="flex items-center gap-1.5"><Phone className="h-3 w-3 text-[#1a2b48]" /> +92 300 1234567</span>
-            <span className="flex items-center gap-1.5 border-l pl-4"><Mail className="h-3 w-3 text-[#1a2b48]" /> INFO@MMONLINEACADEMY.COM</span>
+            <a href="tel:03182990927" className="flex items-center gap-1.5 hover:text-gold-light transition-colors"><Phone className="h-3 w-3 text-gold-light" /> +92 318 2990927</a>
+            <a href="mailto:mmonlineacademy26@gmail.com" className="flex items-center gap-1.5 border-l border-white/20 pl-4 hover:text-gold-light transition-colors uppercase"><Mail className="h-3 w-3 text-gold-light" /> mmonlineacademy26@gmail.com</a>
           </div>
-          <div className="flex items-center gap-3">
-            <Facebook className="h-3.5 w-3.5 cursor-pointer hover:text-[#1a2b48] transition-colors" />
-            <Twitter className="h-3.5 w-3.5 cursor-pointer hover:text-[#1a2b48] transition-colors" />
-            <Youtube className="h-3.5 w-3.5 cursor-pointer hover:text-[#1a2b48] transition-colors" />
+          <div className="flex items-center gap-4">
+             <span className="flex items-center gap-2"><Star className="h-2.5 w-2.5 text-gold-light fill-current" /> National Academic Standard</span>
+            <div className="flex items-center gap-3 border-l border-white/20 pl-4">
+              <a href="https://www.facebook.com/MirpurkhasAliTalpurTown/" target="_blank" rel="noopener noreferrer"><Facebook className="h-3.5 w-3.5 cursor-pointer hover:text-gold-light transition-colors" /></a>
+              <a href="https://www.instagram.com/majid.maqsood01/?hl=en" target="_blank" rel="noopener noreferrer"><Instagram className="h-3.5 w-3.5 cursor-pointer hover:text-gold-light transition-colors" /></a>
+              <a href="https://www.linkedin.com/in/majid-maqsood-633444374/" target="_blank" rel="noopener noreferrer"><Linkedin className="h-3.5 w-3.5 cursor-pointer hover:text-gold-light transition-colors" /></a>
+            </div>
           </div>
         </div>
       </div>
 
       {/* Main Header Logo Area */}
-      <div className="max-w-7xl mx-auto w-full px-4 py-4 md:py-6 flex justify-between items-center">
+      <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-3 md:py-6 flex justify-between items-center">
         <div 
-          className="flex items-center cursor-pointer select-none group"
+          className="flex items-center cursor-pointer select-none group min-w-0"
           onClick={() => handleNavClick('home')}
         >
-          <div className="bg-[#1a2b48] p-2 md:p-3 rounded-lg mr-3 shadow-md group-hover:scale-105 transition-transform shrink-0">
-            <BookOpen className="h-7 w-7 md:h-10 md:w-10 text-white" />
+          <div className="relative shrink-0">
+            <div className="bg-pakgreen dark:bg-pakgreen-light p-2 md:p-3 rounded-lg mr-2 md:mr-4 shadow-xl group-hover:scale-105 transition-transform">
+              <BookOpen className="h-6 w-6 md:h-10 md:w-10 text-white" />
+            </div>
+            <Star className="absolute -top-1 -right-1 h-4 w-4 text-gold-light fill-current animate-pulse-subtle" />
           </div>
           <div className="flex flex-col overflow-hidden">
-            <h1 className="text-base md:text-3xl font-black text-[#1a2b48] leading-none uppercase tracking-tight truncate">Professional Academy</h1>
-            <p className="text-[7px] md:text-xs font-bold text-gray-400 mt-0.5 md:mt-1 tracking-[0.1em] md:tracking-[0.15em] uppercase truncate">Gateway to Legal Excellence</p>
+            <h1 className="text-base sm:text-lg md:text-3xl font-black text-pakgreen dark:text-gold-light leading-none uppercase tracking-tight truncate">Professional Academy</h1>
+            <p className="text-[7px] sm:text-[9px] md:text-xs font-black text-zinc-500 dark:text-zinc-400 mt-1 tracking-[0.2em] uppercase truncate">National Gateway to Legal Excellence</p>
           </div>
         </div>
 
-        {/* Desktop Search */}
-        <div className="hidden lg:flex items-center bg-gray-100 rounded-md px-3 py-2 group border border-transparent focus-within:border-[#1a2b48] transition-all">
-          <input 
-            type="text" 
-            placeholder="Search resources..." 
-            className="bg-transparent text-xs text-gray-700 placeholder-gray-400 border-none outline-none w-48 xl:w-64"
-          />
-          <Search className="h-4 w-4 text-gray-400 group-hover:text-[#1a2b48] cursor-pointer" />
-        </div>
+        <div className="flex items-center gap-2 sm:gap-4">
+          <button 
+            onClick={toggleTheme}
+            className="p-2 md:p-3 rounded-xl bg-zinc-100 dark:bg-pakgreen-dark text-pakgreen dark:text-gold-light hover:bg-gold-light dark:hover:bg-gold-light hover:text-white dark:hover:text-pakgreen transition-all border border-zinc-200 dark:border-gold/20"
+            aria-label="Toggle theme"
+          >
+            {theme === 'dark' ? <Sun className="h-4 w-4 md:h-5 md:w-5" /> : <Moon className="h-4 w-4 md:h-5 md:w-5" />}
+          </button>
 
-        {/* Mobile Menu Toggle */}
-        <button 
-          className="lg:hidden p-2 text-[#1a2b48] hover:bg-gray-100 rounded-md transition-colors z-[110]"
-          onClick={() => setIsMenuOpen(!isMenuOpen)}
-          aria-label="Toggle menu"
-        >
-          {isMenuOpen ? <X className="h-6 w-6 md:h-7 md:w-7" /> : <Menu className="h-6 w-6 md:h-7 md:w-7" />}
-        </button>
+          <button 
+            className="lg:hidden p-2 text-pakgreen dark:text-gold-light hover:bg-zinc-100 dark:hover:bg-pakgreen-dark rounded-xl transition-colors z-[110]"
+            onClick={() => setIsMenuOpen(!isMenuOpen)}
+            aria-label="Toggle menu"
+          >
+            {isMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+          </button>
+        </div>
       </div>
 
-      {/* Desktop Navigation Bar */}
-      <nav className="main-nav-bg sticky top-0 z-50 shadow-lg hidden lg:block">
-        <div className="max-w-7xl mx-auto px-4">
+      <nav className="bg-pakgreen dark:bg-pakgreen border-y border-gold/10 sticky top-0 z-50 shadow-lg hidden lg:block">
+        <div className="max-w-7xl mx-auto px-8">
           <div className="flex justify-start items-center">
             {navItems.map((item) => (
               <button 
                 key={item.label}
                 onClick={() => handleNavClick(item.view, item.subId)}
-                className="text-white hover:bg-white/10 px-5 py-4 text-[11px] font-bold uppercase tracking-widest transition-colors border-r border-white/5 last:border-r-0"
+                className="text-white/80 hover:text-gold-light hover:bg-white/5 px-6 py-4 text-[11px] font-black uppercase tracking-[0.2em] transition-all border-r border-white/10 last:border-r-0"
               >
                 {item.label}
               </button>
@@ -95,56 +113,27 @@ const Navbar: React.FC<NavbarProps> = ({ onNavigate }) => {
         </div>
       </nav>
 
-      {/* Mobile Menu Overlay */}
       <div className={`lg:hidden fixed inset-0 z-[100] transition-all duration-300 ${isMenuOpen ? 'visible opacity-100' : 'invisible opacity-0'}`}>
-        <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setIsMenuOpen(false)}></div>
-        <div className={`absolute left-0 top-0 bottom-0 w-[85%] max-w-[320px] bg-[#1a2b48] shadow-2xl transition-transform duration-300 ease-out flex flex-col ${isMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-          <div className="p-6 border-b border-white/10 flex flex-col gap-4">
-             <div className="flex items-center gap-2">
-                <BookOpen className="h-6 w-6 text-white" />
-                <span className="text-white font-black text-sm uppercase tracking-tighter">Navigation</span>
-             </div>
-             {/* Mobile Search Input */}
-             <div className="flex items-center bg-white/10 rounded-md px-3 py-2.5 border border-white/5 focus-within:border-blue-400 transition-all">
-                <input 
-                  type="text" 
-                  value={mobileSearch}
-                  onChange={(e) => setMobileSearch(e.target.value)}
-                  placeholder="Search resources..." 
-                  className="bg-transparent text-xs text-white placeholder-white/40 border-none outline-none w-full"
-                />
-                <Search className="h-4 w-4 text-white/40" />
+        <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setIsMenuOpen(false)}></div>
+        <div className={`absolute left-0 top-0 bottom-0 w-[85%] max-w-[300px] bg-white dark:bg-pakgreen-deepest shadow-2xl transition-transform duration-300 ease-out flex flex-col ${isMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+          <div className="p-8 border-b border-zinc-200 dark:border-gold/10 flex flex-col gap-6">
+             <div className="flex items-center gap-3">
+                <BookOpen className="h-6 w-6 text-pakgreen dark:text-gold-light" />
+                <span className="text-pakgreen dark:text-gold-light font-black text-sm uppercase tracking-tighter">Elite Navigation</span>
              </div>
           </div>
           
-          <div className="flex-grow overflow-y-auto py-2">
+          <div className="flex-grow overflow-y-auto py-4">
              {navItems.map((item) => (
                <button
                  key={item.label}
                  onClick={() => handleNavClick(item.view, item.subId)}
-                 className="w-full text-left px-6 py-4 text-white hover:bg-white/10 flex items-center justify-between group transition-colors border-l-4 border-transparent hover:border-blue-400"
+                 className="w-full text-left px-8 py-5 text-zinc-600 dark:text-zinc-300 hover:text-pakgreen dark:hover:text-gold-light hover:bg-zinc-50 dark:hover:bg-white/5 flex items-center justify-between group transition-all border-l-8 border-transparent hover:border-pakgreen dark:hover:border-gold"
                >
-                 <span className="text-[11px] font-bold uppercase tracking-[0.2em]">{item.label}</span>
-                 <ChevronRight className="h-4 w-4 text-white/20 group-hover:text-white group-hover:translate-x-1 transition-all" />
+                 <span className="text-[11px] font-black uppercase tracking-[0.2em]">{item.label}</span>
+                 <ChevronRight className="h-4 w-4 opacity-30 group-hover:opacity-100 transition-all" />
                </button>
              ))}
-          </div>
-
-          <div className="p-6 border-t border-white/10 bg-black/20">
-             <p className="text-[10px] text-white/40 font-bold uppercase tracking-widest mb-4">Support & Social</p>
-             <div className="flex flex-col gap-3 mb-6">
-                <a href="tel:+923001234567" className="text-white text-xs font-bold flex items-center gap-3 hover:text-blue-300 transition-colors">
-                   <Phone className="h-4 w-4 text-blue-400" /> +92 300 1234567
-                </a>
-                <a href="mailto:info@mmonlineacademy.com" className="text-white text-xs font-bold flex items-center gap-3 hover:text-blue-300 transition-colors">
-                   <Mail className="h-4 w-4 text-blue-400" /> Email Support
-                </a>
-             </div>
-             <div className="flex gap-4">
-                <Facebook className="h-5 w-5 text-white/40 hover:text-white transition-colors" />
-                <Twitter className="h-5 w-5 text-white/40 hover:text-white transition-colors" />
-                <Youtube className="h-5 w-5 text-white/40 hover:text-white transition-colors" />
-             </div>
           </div>
         </div>
       </div>

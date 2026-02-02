@@ -23,6 +23,18 @@ export interface Quiz {
   title: string;
   subCategoryId: string;
   questions: Question[];
+  videoUrl?: string; // Optional YouTube video link for the result page
+}
+
+export interface QuizFeedback {
+  id: string;
+  quizId: string;
+  quizTitle: string;
+  studentName: string;
+  studentEmail: string;
+  comment: string;
+  date: string;
+  isVisible: boolean; // Controls if students can see this comment
 }
 
 export interface StudyNote {

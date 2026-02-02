@@ -29,6 +29,7 @@ export const MOCK_QUIZ: Quiz = {
   id: 'q1',
   title: 'Constitution of Pakistan - Part I',
   subCategoryId: 'law-gat',
+  videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', // Sample video
   questions: [
     {
       id: 'q1_1',
