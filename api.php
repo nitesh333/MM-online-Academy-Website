@@ -1,30 +1,28 @@
 <?php
 /**
- * Professional Academy Backend API - High Compatibility Version
+ * Professional Academy Backend API - Ultra Stable
  */
 
-// 1. Output Buffering
-ob_start();
-
-// 2. Ultra-Robust CORS Headers (Sent immediately)
+// 1. SET HEADERS IMMEDIATELY (Crucial to prevent "Failed to Fetch" CORS issues)
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
 header("Access-Control-Max-Age: 86400");
 header("Content-Type: application/json; charset=UTF-8");
 
-// Handle preflight
+// Handle preflight OPTIONS request
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    ob_end_clean();
     http_response_code(200);
     exit;
 }
 
+// 2. Output Buffering to catch errors
+ob_start();
+
 // 3. Error Configuration
 error_reporting(E_ALL);
-ini_set('display_errors', 0); // Hide errors from output to keep JSON clean
+ini_set('display_errors', 0); // Log errors but don't print them to break JSON
 
-// 4. Database Credentials
 $host = "localhost";
 $db_name = "mmtestpr_mmtestprep"; 
 $username = "mmtestpr_nitesh";     
@@ -39,34 +37,27 @@ try {
     http_response_code(500);
     echo json_encode([
         "success" => false, 
-        "error" => "DB_CONNECTION_ERROR", 
-        "message" => "Could not connect to database. Check credentials.",
+        "error" => "DATABASE_CONNECTION_ERROR", 
+        "message" => "The API could not connect to your database.",
         "debug" => $e->getMessage()
     ]);
     exit;
 }
 
-// 5. Routing
+// 4. Routing
 $route = $_GET['route'] ?? '';
 $id = $_GET['id'] ?? '';
 $method = $_SERVER['REQUEST_METHOD'];
-$inputData = file_get_contents('php://input');
-$input = json_decode($inputData, true) ?? [];
+$input = json_decode(file_get_contents('php://input'), true) ?? [];
 
-// Diagnostic Routes
+// Diagnostic Test
 if ($route === 'ping') {
     ob_end_clean();
-    echo json_encode(["success" => true, "status" => "online"]);
+    echo json_encode(["success" => true, "status" => "online", "database" => "connected"]);
     exit;
 }
 
-if ($route === 'db_test') {
-    ob_end_clean();
-    echo json_encode(["success" => true, "status" => "Database connected successfully"]);
-    exit;
-}
-
-// --- LOGIN LOGIC ---
+// --- SECURE LOGIN ROUTE ---
 if ($route === 'login' && $method === 'POST') {
     $user = $input['username'] ?? '';
     $pass = $input['password'] ?? '';
@@ -74,7 +65,7 @@ if ($route === 'login' && $method === 'POST') {
     if (empty($user) || empty($pass)) {
         ob_end_clean();
         http_response_code(400);
-        echo json_encode(["success" => false, "error" => "Credentials required"]);
+        echo json_encode(["success" => false, "error" => "Username and password are required"]);
         exit;
     }
 
@@ -87,15 +78,16 @@ if ($route === 'login' && $method === 'POST') {
             $storedPass = $admin['password'];
             $isValid = false;
 
-            // Compatibility check for Bcrypt vs Plain Text
+            // Check if stored string is a Bcrypt hash
             $info = password_get_info($storedPass);
             if ($info['algo'] !== 0) {
+                // It's a hash
                 $isValid = password_verify($pass, $storedPass);
             } else {
-                // Migration: Check if user put plain text in DB via SQL
+                // It's PLAIN TEXT (Migration Mode)
                 if ($pass === $storedPass) {
                     $isValid = true;
-                    // Upgrade to secure hash immediately
+                    // Auto-upgrade to secure hash
                     $newHash = password_hash($pass, PASSWORD_DEFAULT);
                     $uStmt = $conn->prepare("UPDATE admins SET password = ? WHERE id = ?");
                     $uStmt->execute([$newHash, $admin['id']]);
@@ -103,7 +95,6 @@ if ($route === 'login' && $method === 'POST') {
             }
 
             if ($isValid) {
-                // Compatible token generation (PHP 5.4+)
                 $token = bin2hex(openssl_random_pseudo_bytes(16));
                 ob_end_clean();
                 echo json_encode([
@@ -117,7 +108,7 @@ if ($route === 'login' && $method === 'POST') {
         
         ob_end_clean();
         http_response_code(401);
-        echo json_encode(["success" => false, "error" => "Invalid Access Credentials"]);
+        echo json_encode(["success" => false, "error" => "Access Denied: Invalid Credentials"]);
     } catch (Exception $e) {
         ob_end_clean();
         http_response_code(500);
@@ -126,7 +117,7 @@ if ($route === 'login' && $method === 'POST') {
     exit;
 }
 
-// Standard CRUD Mapping
+// --- GENERIC CRUD ---
 $tables = [
     'notifications' => 'notifications',
     'categories' => 'categories',
@@ -137,15 +128,13 @@ $tables = [
 ];
 
 $table = $tables[$route] ?? null;
-
 if (!$table) {
     ob_end_clean();
     http_response_code(404);
-    echo json_encode(["success" => false, "error" => "Endpoint not found"]);
+    echo json_encode(["success" => false, "error" => "Endpoint not found: " . $route]);
     exit;
 }
 
-// RESTful Actions
 try {
     switch ($method) {
         case 'GET':
@@ -178,9 +167,19 @@ try {
             } elseif ($table === 'quizzes') {
                 $stmt = $conn->prepare("INSERT INTO quizzes (id, title, subCategoryId, questions, videoUrl) VALUES (?, ?, ?, ?, ?)");
                 $stmt->execute([$input['id'], $input['title'], $input['subCategoryId'], json_encode($input['questions']), $input['videoUrl'] ?? '']);
+            } elseif ($table === 'notifications') {
+                $stmt = $conn->prepare("INSERT INTO notifications (id, title, date, content, type) VALUES (?, ?, ?, ?, ?)");
+                $stmt->execute([$input['id'], $input['title'], $input['date'], $input['content'], $input['type']]);
+            } elseif ($table === 'categories') {
+                $stmt = $conn->prepare("INSERT INTO categories (id, name, description) VALUES (?, ?, ?)");
+                $stmt->execute([$input['id'], $input['name'], $input['description']]);
+            } elseif ($table === 'notes') {
+                $stmt = $conn->prepare("INSERT INTO notes (id, title, url, subCategoryId, type) VALUES (?, ?, ?, ?, ?)");
+                $stmt->execute([$input['id'], $input['title'], $input['url'], $input['subCategoryId'], $input['type']]);
+            } elseif ($table === 'feedback') {
+                $stmt = $conn->prepare("INSERT INTO feedback (id, quizId, quizTitle, studentName, studentEmail, comment, date, isVisible) VALUES (?, ?, ?, ?, ?, ?, ?, 0)");
+                $stmt->execute([$input['id'], $input['quizId'], $input['quizTitle'], $input['studentName'], $input['studentEmail'], $input['comment'], $input['date']]);
             }
-            // Add other tables as needed...
-            
             ob_end_clean();
             echo json_encode(["success" => true]);
             break;
@@ -189,6 +188,9 @@ try {
             if ($table === 'admins' && $id) {
                 $stmt = $conn->prepare("UPDATE admins SET password = ? WHERE id = ?");
                 $stmt->execute([password_hash($input['password'], PASSWORD_DEFAULT), $id]);
+            } elseif ($table === 'feedback' && $id) {
+                $stmt = $conn->prepare("UPDATE feedback SET isVisible = ? WHERE id = ?");
+                $stmt->execute([$input['isVisible'] ? 1 : 0, $id]);
             }
             ob_end_clean();
             echo json_encode(["success" => true]);

@@ -16,6 +16,8 @@ export const dataService = {
     let url = `${API_BASE_URL}?route=${route}`;
     if (id) url += `&id=${id}`;
 
+    console.debug(`[DataService] Requesting: ${method} ${url}`);
+
     try {
       const response = await fetch(url, {
         method,
@@ -28,7 +30,13 @@ export const dataService = {
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
+        const errorText = await response.text();
+        let errorData;
+        try {
+          errorData = JSON.parse(errorText);
+        } catch(e) {
+          errorData = { error: `Server returned non-JSON response: ${errorText.substring(0, 100)}` };
+        }
         throw new Error(errorData.error || `HTTP ${response.status}`);
       }
 
@@ -37,8 +45,11 @@ export const dataService = {
         return Array.isArray(data) ? data : [];
       }
       return data;
-    } catch (error) {
+    } catch (error: any) {
       console.error("API Request Failed:", error);
+      if (error.name === 'TypeError' && error.message.includes('fetch')) {
+        throw new Error("Network Error: The API is unreachable. Check CORS headers or your internet connection.");
+      }
       if (method === 'GET' && !id) return [];
       throw error;
     }
