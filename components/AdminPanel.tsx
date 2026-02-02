@@ -33,6 +33,12 @@ interface AdminPanelProps {
   onDeleteQuiz: (id: string) => void;
 }
 
+interface TempQuestion {
+  text: string;
+  options: string[];
+  correctAnswer: number;
+}
+
 const AdminPanel: React.FC<AdminPanelProps> = ({ 
   notifications, 
   categories, 
@@ -105,7 +111,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     if (!file) return;
 
     setIsParsingWord(true);
-    setActiveTab('word-converter'); // Switch immediately to show loading state
+    setActiveTab('word-converter'); 
 
     try {
       const arrayBuffer = await file.arrayBuffer();
@@ -115,9 +121,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       const questions: Question[] = [];
       const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
 
-      let currentQuestion: { text: string; options: string[]; correctAnswer: number } | null = null;
+      let currentQuestion: TempQuestion | null = null;
 
-      lines.forEach((line) => {
+      for (const line of lines) {
         // Regex for Question: "1.", "1)", "Q1.", "Question 1:", or just "1 " at start
         const questionMatch = line.match(/^(?:Q|Question\s*)?(\d+)[\.\)\-\s]+(.*)/i);
         
@@ -128,7 +134,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
         const answerMatch = line.match(/(?:Answer|Ans|Correct)(?:\s+is)?[\s:]*([A-Da-d])/i);
 
         if (questionMatch) {
-          // If we had a previous question that was valid, push it
           if (currentQuestion && currentQuestion.text && currentQuestion.options.length >= 2) {
             questions.push({
               id: `word_${Date.now()}_${questions.length}`,
@@ -146,12 +151,11 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
           currentQuestion.options.push(optionMatch[2].trim());
         } else if (answerMatch && currentQuestion) {
           const letter = answerMatch[1].toUpperCase();
-          currentQuestion.correctAnswer = letter.charCodeAt(0) - 65; // A=0, B=1, etc.
+          currentQuestion.correctAnswer = letter.charCodeAt(0) - 65; 
         } else if (currentQuestion && !optionMatch && !answerMatch) {
-          // If the line doesn't match a new question/option/answer, it's probably multiline text for the current question
           currentQuestion.text += " " + line;
         }
-      });
+      }
 
       // Push final question
       if (currentQuestion && currentQuestion.text && currentQuestion.options.length >= 2) {
@@ -307,7 +311,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       </div>
 
       <div className="p-4 sm:p-6 md:p-8 flex-grow">
-        {/* Word Converter Tab */}
         {activeTab === 'word-converter' && (
           <div className="space-y-8 animate-in fade-in slide-in-from-top-2">
             <div className="bg-blue-600/10 border border-blue-500/20 p-6 rounded-2xl flex items-start gap-4">
@@ -385,7 +388,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
           </div>
         )}
 
-        {/* Existing Quizzes Tab with Manual Creator */}
         {activeTab === 'quizzes' && (
           <div className="space-y-6">
             <div className="flex justify-between items-center mb-6">
@@ -463,7 +465,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
           </div>
         )}
 
-        {/* Alerts Tab */}
         {activeTab === 'notifications' && (
           <div className="space-y-6">
             <div className="flex justify-between items-center mb-6">
@@ -504,7 +505,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
           </div>
         )}
 
-        {/* Categories Tab */}
         {activeTab === 'categories' && (
           <div className="space-y-6">
             <div className="flex justify-between items-center mb-6">
@@ -533,7 +533,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
           </div>
         )}
 
-        {/* Repo Tab */}
         {activeTab === 'uploads' && (
           <div className="space-y-8">
             <h3 className="text-xl font-black text-white uppercase tracking-tight mb-6">Study Repository</h3>
@@ -561,7 +560,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
           </div>
         )}
 
-        {/* Feedback Tab */}
         {activeTab === 'feedback' && (
           <div className="space-y-6">
             <h3 className="text-xl font-black text-white uppercase tracking-tight mb-6">Institutional Feedback</h3>
