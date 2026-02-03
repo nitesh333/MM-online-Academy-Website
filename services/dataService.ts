@@ -1,11 +1,10 @@
-
 import { Notification, SubCategory, Quiz, StudyNote, QuizFeedback } from '../types';
 
 /**
  * CONFIGURATION:
- * Pointing to your live Hoster PK domain.
+ * Pointing to your live domain API with 'www' to prevent redirection issues.
  */
-const API_BASE_URL = 'https://mmtestpreparation.com/api.php'; 
+const API_BASE_URL = 'https://www.mmtestpreparation.com/api.php'; 
 
 export const dataService = {
   async request(endpoint: string, method: string = 'GET', body?: any) {
@@ -13,45 +12,61 @@ export const dataService = {
     const route = segments[0];
     const id = segments[1];
     
-    let url = `${API_BASE_URL}?route=${route}`;
-    if (id) url += `&id=${id}`;
-
-    console.debug(`[DataService] Requesting: ${method} ${url}`);
+    // Construct URL with query parameters for the PHP router
+    let url = `${API_BASE_URL}?route=${encodeURIComponent(route)}`;
+    if (id) url += `&id=${encodeURIComponent(id)}`;
 
     try {
       const response = await fetch(url, {
         method,
         mode: 'cors',
         headers: { 
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
+          'Content-Type': 'application/json'
         },
         body: body ? JSON.stringify(body) : undefined
       });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        let errorData;
-        try {
-          errorData = JSON.parse(errorText);
-        } catch(e) {
-          errorData = { error: `Server returned non-JSON response: ${errorText.substring(0, 100)}` };
-        }
-        throw new Error(errorData.error || `HTTP ${response.status}`);
+      // Special fallback for login if POST is converted to GET or rejected with 405
+      if (route === 'login' && (response.status === 405 || response.status === 404)) {
+         console.warn("POST Login failed with method error, attempting GET fallback...");
+         const fallbackUrl = `${url}&username=${encodeURIComponent(body.username)}&password=${encodeURIComponent(body.password)}`;
+         const fallbackResponse = await fetch(fallbackUrl);
+         const fallbackText = await fallbackResponse.text();
+         return JSON.parse(fallbackText);
       }
 
-      const data = await response.json();
+      const text = await response.text();
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (e) {
+        data = { error: text || `HTTP ${response.status}` };
+      }
+
+      if (!response.ok) {
+        throw new Error(data.error || data.debug || `HTTP ${response.status}`);
+      }
+
       if (method === 'GET' && !id) {
         return Array.isArray(data) ? data : [];
       }
       return data;
     } catch (error: any) {
-      console.error("API Request Failed:", error);
-      if (error.name === 'TypeError' && error.message.includes('fetch')) {
-        throw new Error("Network Error: The API is unreachable. Check CORS headers or your internet connection.");
+      console.error("[DataService Error]", error);
+      
+      // If the error happened during a POST login, try a one-time GET fallback here as well
+      if (endpoint.includes('login') && method === 'POST') {
+         try {
+            const fallbackUrl = `${url}&username=${encodeURIComponent(body.username)}&password=${encodeURIComponent(body.password)}`;
+            const fbRes = await fetch(fallbackUrl);
+            return await fbRes.json();
+         } catch (innerErr) {
+            return { success: false, error: "Authentication system failure.", debug: error.message };
+         }
       }
+
       if (method === 'GET' && !id) return [];
-      throw error;
+      return { success: false, error: error.message || "Connection failed", debug: error.message };
     }
   },
 

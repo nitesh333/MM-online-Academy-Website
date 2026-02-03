@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import Navbar from './components/Navbar';
 import QuizModule from './components/QuizModule';
@@ -42,27 +41,37 @@ const AdminLogin: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [debug, setDebug] = useState('');
   const [isVerifying, setIsVerifying] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsVerifying(true);
     setError('');
+    setDebug('');
     
+    // Simple UI-side cleaning
+    const cleanUser = username.trim().toLowerCase();
+    const cleanPass = password.trim();
+
     try {
-      const response = await dataService.login(username, password);
+      if (!cleanUser || !cleanPass) {
+        setError("Missing credentials.");
+        setIsVerifying(false);
+        return;
+      }
+
+      const response = await dataService.login(cleanUser, cleanPass);
       if (response && response.success) {
         onLogin();
       } else {
-        setError(response.error || 'Invalid Access Credentials');
+        setError(response.error || 'Authentication Failed');
+        if (response.debug) setDebug(response.debug);
       }
     } catch (err: any) {
-      console.error("Login attempt failed:", err);
-      if (err.message.includes('fetch')) {
-        setError('Network Error: API unreachable or CORS blocked.');
-      } else {
-        setError(err.message || 'Authentication Failed');
-      }
+      console.error("Login System Error:", err);
+      setError('Communication Error');
+      setDebug(err.message || 'The server could not be reached or returned an invalid response.');
     } finally {
       setIsVerifying(false);
     }
@@ -81,7 +90,7 @@ const AdminLogin: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
           
           <form onSubmit={handleSubmit} className="space-y-5 text-left">
             <div className="space-y-2">
-              <label className="text-[9px] font-black uppercase text-zinc-400 tracking-widest ml-1">Access ID</label>
+              <label className="text-[9px] font-black uppercase text-zinc-400 tracking-widest ml-1">Admin Email ID</label>
               <div className="relative">
                 <User className="absolute left-5 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
                 <input 
@@ -89,15 +98,15 @@ const AdminLogin: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
                   autoComplete="username"
                   value={username}
                   onChange={e => setUsername(e.target.value)}
-                  className="w-full bg-zinc-50 dark:bg-pakgreen-deepest border-2 border-zinc-200 dark:border-gold/10 p-4 pl-14 rounded-2xl text-xs font-black uppercase tracking-widest outline-none focus:border-gold-light transition-all" 
-                  placeholder="Enter ID"
+                  className="w-full bg-zinc-50 dark:bg-pakgreen-deepest border-2 border-zinc-200 dark:border-gold/10 p-4 pl-14 rounded-2xl text-sm font-medium outline-none focus:border-gold-light transition-all text-zinc-800 dark:text-zinc-100" 
+                  placeholder="admin@academy.pk"
                   required
                 />
               </div>
             </div>
             
             <div className="space-y-2">
-              <label className="text-[9px] font-black uppercase text-zinc-400 tracking-widest ml-1">Master Password</label>
+              <label className="text-[9px] font-black uppercase text-zinc-400 tracking-widest ml-1">Secure Password</label>
               <div className="relative">
                 <Lock className="absolute left-5 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
                 <input 
@@ -105,16 +114,23 @@ const AdminLogin: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
                   autoComplete="current-password"
                   value={password}
                   onChange={e => setPassword(e.target.value)}
-                  className="w-full bg-zinc-50 dark:bg-pakgreen-deepest border-2 border-zinc-200 dark:border-gold/10 p-4 pl-14 rounded-2xl text-xs font-black uppercase tracking-widest outline-none focus:border-gold-light transition-all" 
+                  className="w-full bg-zinc-50 dark:bg-pakgreen-deepest border-2 border-zinc-200 dark:border-gold/10 p-4 pl-14 rounded-2xl text-sm font-medium outline-none focus:border-gold-light transition-all text-zinc-800 dark:text-zinc-100" 
                   placeholder="••••••••"
                   required
                 />
               </div>
             </div>
 
-            {error && (
-              <div className="bg-red-500/10 border border-red-500/20 p-3 rounded-xl">
-                <p className="text-red-500 text-[10px] font-black uppercase text-center">{error}</p>
+            {(error || debug) && (
+              <div className="bg-red-500/10 border border-red-500/20 p-4 rounded-xl space-y-2 overflow-hidden">
+                {error && <p className="text-red-500 text-[10px] font-black uppercase text-center">{error}</p>}
+                {debug && (
+                  <div className="mt-2 pt-2 border-t border-red-500/10">
+                    <p className="text-zinc-500 dark:text-zinc-400 text-[8px] font-mono break-all text-center">
+                      SYSTEM_DEBUG: {debug}
+                    </p>
+                  </div>
+                )}
               </div>
             )}
 
@@ -124,12 +140,16 @@ const AdminLogin: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
               className="w-full py-5 bg-pakgreen dark:bg-gold-light text-white dark:text-pakgreen rounded-2xl font-black uppercase text-[10px] tracking-[0.4em] flex items-center justify-center gap-4 hover:scale-[1.02] transition-all shadow-xl mt-8 disabled:opacity-70"
             >
               {isVerifying ? (
-                <>Verifying Credentials <Loader2 className="h-4 w-4 animate-spin" /></>
+                <>Verifying... <Loader2 className="h-4 w-4 animate-spin" /></>
               ) : (
                 <>Secure Entrance <ArrowRight className="h-4 w-4" /></>
               )}
             </button>
           </form>
+          
+          <p className="mt-8 text-[8px] font-bold text-zinc-400 uppercase tracking-widest">
+            By entering, you agree to the National Academic Security Protocol.
+          </p>
         </div>
       </div>
     </div>
