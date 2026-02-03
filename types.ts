@@ -54,7 +54,7 @@ export interface Notification {
 }
 
 export interface AppState {
-  view: 'home' | 'category' | 'quiz' | 'admin' | 'notifications';
+  view: 'home' | 'category' | 'quiz' | 'admin' | 'notifications' | 'contact';
   selectedSubCategory?: string;
   selectedQuiz?: string;
   isAdmin: boolean;

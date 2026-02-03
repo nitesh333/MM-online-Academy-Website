@@ -32,7 +32,7 @@ const Navbar: React.FC<NavbarProps> = ({ onNavigate }) => {
     { label: 'Law GAT Series', view: 'category' as const, subId: 'law-gat' },
     { label: 'LLB Notes', view: 'category' as const, subId: 'llb-s1' },
     { label: 'Gazette', view: 'notifications' as const },
-    { label: 'Contact', view: 'home' as const }
+    { label: 'Contact', view: 'contact' as const }
   ];
 
   const handleNavClick = (view: AppState['view'], subId?: string) => {
@@ -67,13 +67,17 @@ const Navbar: React.FC<NavbarProps> = ({ onNavigate }) => {
           onClick={() => handleNavClick('home')}
         >
           <div className="relative shrink-0">
-            <div className="bg-pakgreen dark:bg-pakgreen-light p-2 md:p-3 rounded-lg mr-2 md:mr-4 shadow-xl group-hover:scale-105 transition-transform">
-              <BookOpen className="h-6 w-6 md:h-10 md:w-10 text-white" />
+            <div className="bg-pakgreen dark:bg-pakgreen-light p-1 rounded-lg mr-2 md:mr-4 shadow-xl group-hover:scale-105 transition-transform overflow-hidden w-12 h-12 md:w-20 md:h-20 flex items-center justify-center">
+              {/* Academy Logo Placement */}
+              <img src="https://i.ibb.co/1fWNV4p/logo.png" alt="MM Online Logo" className="w-full h-full object-contain" onError={(e) => {
+                e.currentTarget.style.display = 'none';
+                e.currentTarget.parentElement!.innerHTML = '<div class="text-white font-black text-xl">MM</div>';
+              }} />
             </div>
             <Star className="absolute -top-1 -right-1 h-4 w-4 text-gold-light fill-current animate-pulse-subtle" />
           </div>
           <div className="flex flex-col overflow-hidden">
-            <h1 className="text-base sm:text-lg md:text-3xl font-black text-pakgreen dark:text-gold-light leading-none uppercase tracking-tight truncate">Professional Academy</h1>
+            <h1 className="text-base sm:text-lg md:text-3xl font-black text-pakgreen dark:text-gold-light leading-none uppercase tracking-tight truncate">MM Online Academy</h1>
             <p className="text-[7px] sm:text-[9px] md:text-xs font-black text-zinc-500 dark:text-zinc-400 mt-1 tracking-[0.2em] uppercase truncate">National Gateway to Legal Excellence</p>
           </div>
         </div>
@@ -84,7 +88,7 @@ const Navbar: React.FC<NavbarProps> = ({ onNavigate }) => {
             className="p-2 md:p-3 rounded-xl bg-zinc-100 dark:bg-pakgreen-dark text-pakgreen dark:text-gold-light hover:bg-gold-light dark:hover:bg-gold-light hover:text-white dark:hover:text-pakgreen transition-all border border-zinc-200 dark:border-gold/20"
             aria-label="Toggle theme"
           >
-            {theme === 'dark' ? <Sun className="h-4 w-4 md:h-5 md:w-5" /> : <Moon className="h-4 w-4 md:h-5 md:w-5" />}
+            {theme === 'dark' ? <Sun className="h-4 w-4 md:h-5 md:w-5" /> : <Menu className="h-4 w-4 md:h-5 md:w-5" />}
           </button>
 
           <button 

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import Navbar from './components/Navbar';
 import QuizModule from './components/QuizModule';
@@ -34,7 +35,10 @@ import {
   Lock,
   User,
   ShieldAlert,
-  Loader2
+  Loader2,
+  MessageCircle,
+  Hash,
+  MapPin
 } from 'lucide-react';
 
 const AdminLogin: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
@@ -50,8 +54,7 @@ const AdminLogin: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
     setError('');
     setDebug('');
     
-    // Simple UI-side cleaning
-    const cleanUser = username.trim().toLowerCase();
+    const cleanUser = username.trim();
     const cleanPass = password.trim();
 
     try {
@@ -69,9 +72,8 @@ const AdminLogin: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
         if (response.debug) setDebug(response.debug);
       }
     } catch (err: any) {
-      console.error("Login System Error:", err);
-      setError('Communication Error');
-      setDebug(err.message || 'The server could not be reached or returned an invalid response.');
+      setError('Connection Error');
+      setDebug(err.message || 'Server unreachable');
     } finally {
       setIsVerifying(false);
     }
@@ -121,16 +123,10 @@ const AdminLogin: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
               </div>
             </div>
 
-            {(error || debug) && (
-              <div className="bg-red-500/10 border border-red-500/20 p-4 rounded-xl space-y-2 overflow-hidden">
-                {error && <p className="text-red-500 text-[10px] font-black uppercase text-center">{error}</p>}
-                {debug && (
-                  <div className="mt-2 pt-2 border-t border-red-500/10">
-                    <p className="text-zinc-500 dark:text-zinc-400 text-[8px] font-mono break-all text-center">
-                      SYSTEM_DEBUG: {debug}
-                    </p>
-                  </div>
-                )}
+            {error && (
+              <div className="bg-red-500/10 border border-red-500/20 p-4 rounded-xl">
+                <p className="text-red-500 text-[10px] font-black uppercase text-center">{error}</p>
+                {debug && <p className="text-zinc-400 text-[8px] mt-2 text-center uppercase tracking-widest">{debug}</p>}
               </div>
             )}
 
@@ -218,6 +214,8 @@ const App: React.FC = () => {
         setState(prev => ({ ...prev, view: 'category', selectedSubCategory: subId, isAdmin: isSubdomain }));
       } else if (hash === '#/notifications') {
         setState(prev => ({ ...prev, view: 'notifications', isAdmin: isSubdomain }));
+      } else if (hash === '#/contact') {
+        setState(prev => ({ ...prev, view: 'contact', isAdmin: isSubdomain }));
       } else if (hash.startsWith('#/quiz')) {
         const quizId = hash.split('?id=')[1];
         const quizList = await dataService.getQuizzes();
@@ -239,9 +237,10 @@ const App: React.FC = () => {
     let hash = '';
     if (view === 'category') hash = subCatId ? `#/category?id=${subCatId}` : '#/category';
     else if (view === 'notifications') hash = '#/notifications';
+    else if (view === 'contact') hash = '#/contact';
     else if (view === 'quiz') hash = quizId ? `#/quiz?id=${quizId}` : '#/quiz';
     else if (view === 'admin' && state.isAdmin) hash = '#/admin';
-    else hash = '';
+    else hash = '#home';
     
     window.location.hash = hash;
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -272,6 +271,17 @@ const App: React.FC = () => {
       <main className="flex-grow w-full">
         {state.view === 'home' && (
           <div className="animate-in fade-in duration-1000">
+            {/* Islamic Ayat Section */}
+            <div className="bg-white dark:bg-pakgreen-deepest py-6 border-b border-gold/10 overflow-hidden">
+               <div className="max-w-7xl mx-auto px-6 flex flex-col items-center text-center">
+                  <div className="mb-4">
+                     <img src="https://i.ibb.co/3sX8N5s/ayat.png" alt="Rabbi Zidni Ilma" className="h-16 md:h-24 object-contain invert dark:invert-0 grayscale-0" />
+                  </div>
+                  <h2 className="text-pakgreen dark:text-gold-light font-black text-lg md:text-2xl uppercase tracking-tighter italic">"My Lord, Increase me in Knowledge"</h2>
+                  <p className="text-[10px] font-black text-zinc-400 uppercase tracking-[0.4em] mt-2">The Spiritual Foundation of MM Online Academy</p>
+               </div>
+            </div>
+
             {/* Hero Section */}
             <section className="relative min-h-[600px] flex items-center overflow-hidden bg-white dark:bg-pakgreen-dark border-b border-gold/20 transition-all shadow-inner">
               <div className="absolute inset-0 z-0">
@@ -289,7 +299,7 @@ const App: React.FC = () => {
                     Admission Portal
                   </h1>
                   <p className="text-zinc-600 dark:text-zinc-300 text-sm sm:text-lg max-w-xl leading-relaxed mb-12 font-medium tracking-tight">
-                    Professional Academy (MM Online) provides a state-of-the-art preparation environment for LAT, LAW GAT, MCAT, and superior legal studies across Pakistan.
+                    MM Online Academy provides a state-of-the-art preparation environment for LAT, LAW GAT, MCAT, and superior legal studies across Pakistan.
                   </p>
                   
                   <div className="flex flex-wrap gap-6">
@@ -308,8 +318,10 @@ const App: React.FC = () => {
                          <div className="absolute inset-0 islamic-pattern opacity-10"></div>
                          <div className="flex items-center justify-between mb-16 relative z-10">
                             <div className="flex items-center gap-4">
-                               <div className="h-14 w-14 rounded-2xl bg-gold flex items-center justify-center shadow-xl"><FileText className="h-7 w-7 text-pakgreen" /></div>
-                               <span className="text-sm font-black uppercase tracking-[0.3em] text-pakgreen dark:text-gold-light">Law GAT 2026</span>
+                               <div className="h-14 w-14 rounded-2xl bg-gold flex items-center justify-center shadow-xl overflow-hidden">
+                                  <img src="https://i.ibb.co/1fWNV4p/logo.png" alt="Logo" className="w-full h-full object-contain p-2" />
+                               </div>
+                               <span className="text-sm font-black uppercase tracking-[0.3em] text-pakgreen dark:text-gold-light">MM Online Academy</span>
                             </div>
                             <div className="px-4 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-[9px] font-black uppercase tracking-widest">Active Enrollment</div>
                          </div>
@@ -318,8 +330,13 @@ const App: React.FC = () => {
                             <div className="h-4 bg-pakgreen/5 dark:bg-gold/5 w-full rounded-full"></div>
                             <div className="h-4 bg-pakgreen/5 dark:bg-gold/5 w-1/2 rounded-full"></div>
                          </div>
-                         <div className="mt-auto relative z-10">
-                            <Star className="h-16 w-16 text-gold/10 absolute -bottom-4 -right-4" />
+                         <div className="mt-auto relative z-10 flex items-center justify-between">
+                            <div className="flex -space-x-3">
+                               <div className="h-10 w-10 rounded-full border-2 border-white bg-zinc-200"></div>
+                               <div className="h-10 w-10 rounded-full border-2 border-white bg-zinc-300"></div>
+                               <div className="h-10 w-10 rounded-full border-2 border-white bg-zinc-400"></div>
+                            </div>
+                            <Star className="h-16 w-16 text-gold/10" />
                          </div>
                       </div>
                    </div>
@@ -518,6 +535,85 @@ const App: React.FC = () => {
            </div>
         )}
 
+        {state.view === 'contact' && (
+          <div className="max-w-7xl mx-auto px-6 sm:px-12 py-12 animate-in fade-in duration-500">
+             <div className="text-center mb-16">
+                <h2 className="text-4xl md:text-6xl font-black text-pakgreen dark:text-gold-light uppercase tracking-tighter">Contact Administration</h2>
+                <p className="text-[11px] font-black text-zinc-500 uppercase tracking-[0.5em] mt-4">We are here to support your excellence</p>
+             </div>
+
+             <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+                <div className="bg-white dark:bg-pakgreen-dark/40 p-10 sm:p-16 rounded-[40px] border border-gold/10 shadow-2xl relative overflow-hidden">
+                   <div className="absolute inset-0 islamic-pattern opacity-5"></div>
+                   <div className="relative z-10 space-y-10">
+                      <div className="flex items-start gap-6">
+                         <div className="h-14 w-14 rounded-2xl bg-pakgreen dark:bg-gold-light flex items-center justify-center text-white dark:text-pakgreen shadow-xl"><Phone className="h-6 w-6" /></div>
+                         <div>
+                            <h4 className="text-[10px] font-black uppercase text-zinc-400 tracking-widest mb-1">Direct Helpline</h4>
+                            <p className="text-xl font-black text-pakgreen dark:text-white uppercase tracking-tight">+92 318 2990927</p>
+                         </div>
+                      </div>
+                      <div className="flex items-start gap-6">
+                         <div className="h-14 w-14 rounded-2xl bg-pakgreen dark:bg-gold-light flex items-center justify-center text-white dark:text-pakgreen shadow-xl"><Mail className="h-6 w-6" /></div>
+                         <div>
+                            <h4 className="text-[10px] font-black uppercase text-zinc-400 tracking-widest mb-1">Official Registry</h4>
+                            <p className="text-lg font-black text-pakgreen dark:text-white uppercase tracking-tight break-all">mmonlineacademy26@gmail.com</p>
+                         </div>
+                      </div>
+                      <div className="flex items-start gap-6">
+                         <div className="h-14 w-14 rounded-2xl bg-pakgreen dark:bg-gold-light flex items-center justify-center text-white dark:text-pakgreen shadow-xl"><MapPin className="h-6 w-6" /></div>
+                         <div>
+                            <h4 className="text-[10px] font-black uppercase text-zinc-400 tracking-widest mb-1">Academy Campus</h4>
+                            <p className="text-lg font-black text-pakgreen dark:text-white uppercase tracking-tight">Mirpurkhas, Sindh, Pakistan</p>
+                         </div>
+                      </div>
+                   </div>
+                   
+                   <div className="mt-16 pt-16 border-t border-gold/10 relative z-10">
+                      <a 
+                        href="https://wa.me/923182990927" 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="w-full py-8 bg-[#25D366] hover:bg-[#128C7E] text-white rounded-3xl font-black uppercase text-sm tracking-[0.4em] flex items-center justify-center gap-6 shadow-2xl transition-all hover:scale-[1.02] active:scale-95 group"
+                      >
+                        <MessageCircle className="h-8 w-8 group-hover:animate-bounce" /> WhatsApp Chat
+                      </a>
+                   </div>
+                </div>
+
+                <div className="space-y-8">
+                   <div className="bg-white dark:bg-pakgreen-dark/40 p-10 rounded-[40px] border border-gold/10 shadow-2xl">
+                      <h3 className="text-xl font-black text-pakgreen dark:text-gold-light uppercase tracking-tighter mb-8 flex items-center gap-3"><Hash className="h-5 w-5 text-gold-light" /> Digital Presence</h3>
+                      <div className="grid grid-cols-2 gap-4">
+                         <a href="https://www.facebook.com/MirpurkhasAliTalpurTown/" target="_blank" className="p-6 bg-zinc-50 dark:bg-pakgreen-deepest rounded-2xl border border-zinc-100 dark:border-gold/5 flex items-center gap-4 hover:bg-gold-light group transition-all">
+                            <Facebook className="h-5 w-5 text-[#1877F2] group-hover:text-pakgreen" />
+                            <span className="text-[10px] font-black uppercase tracking-widest group-hover:text-pakgreen">Facebook</span>
+                         </a>
+                         <a href="https://www.tiktok.com/@majid.maqsood8" target="_blank" className="p-6 bg-zinc-50 dark:bg-pakgreen-deepest rounded-2xl border border-zinc-100 dark:border-gold/5 flex items-center gap-4 hover:bg-gold-light group transition-all">
+                            <Music className="h-5 w-5 text-black dark:text-white group-hover:text-pakgreen" />
+                            <span className="text-[10px] font-black uppercase tracking-widest group-hover:text-pakgreen">TikTok</span>
+                         </a>
+                         <a href="https://www.instagram.com/majid.maqsood01/?hl=en" target="_blank" className="p-6 bg-zinc-50 dark:bg-pakgreen-deepest rounded-2xl border border-zinc-100 dark:border-gold/5 flex items-center gap-4 hover:bg-gold-light group transition-all">
+                            <Instagram className="h-5 w-5 text-[#E4405F] group-hover:text-pakgreen" />
+                            <span className="text-[10px] font-black uppercase tracking-widest group-hover:text-pakgreen">Instagram</span>
+                         </a>
+                         <a href="https://www.linkedin.com/in/majid-maqsood-633444374/" target="_blank" className="p-6 bg-zinc-50 dark:bg-pakgreen-deepest rounded-2xl border border-zinc-100 dark:border-gold/5 flex items-center gap-4 hover:bg-gold-light group transition-all">
+                            <Linkedin className="h-5 w-5 text-[#0A66C2] group-hover:text-pakgreen" />
+                            <span className="text-[10px] font-black uppercase tracking-widest group-hover:text-pakgreen">LinkedIn</span>
+                         </a>
+                      </div>
+                   </div>
+
+                   <div className="bg-pakgreen dark:bg-gold-light p-12 rounded-[40px] shadow-2xl border-4 border-gold/20 flex flex-col items-center justify-center text-center gap-6">
+                      <Star className="h-14 w-14 text-gold-light dark:text-pakgreen fill-current animate-pulse-subtle" />
+                      <h3 className="text-xl font-black text-white dark:text-pakgreen uppercase tracking-tighter leading-tight">Join MM Online Academy Today</h3>
+                      <p className="text-[9px] font-black text-gold-light dark:text-pakgreen/70 uppercase tracking-[0.4em]">Setting the National Gold Standard in Admissions Preparation</p>
+                   </div>
+                </div>
+             </div>
+          </div>
+        )}
+
         {state.view === 'admin' && state.isAdmin && (
           <>
             {!isAuthenticated ? (
@@ -540,28 +636,28 @@ const App: React.FC = () => {
                   categories={categories}
                   quizzes={quizzes}
                   onAddNotification={async (n) => {
-                    const updated = await dataService.addNotification(n);
-                    setNotifications(updated);
+                    const res = await dataService.addNotification(n);
+                    if (res.success) await loadAllData();
                   }}
                   onDeleteNotification={async (id) => {
-                    const updated = await dataService.deleteNotification(id);
-                    setNotifications(updated);
+                    const res = await dataService.deleteNotification(id);
+                    if (res.success) await loadAllData();
                   }}
                   onAddCategory={async (c) => {
-                    const updated = await dataService.addCategory(c);
-                    setCategories(updated);
+                    const res = await dataService.addCategory(c);
+                    if (res.success) await loadAllData();
                   }}
                   onDeleteCategory={async (id) => {
-                    const updated = await dataService.deleteCategory(id);
-                    setCategories(updated);
+                    const res = await dataService.deleteCategory(id);
+                    if (res.success) await loadAllData();
                   }}
                   onAddQuiz={async (q) => {
-                    const updated = await dataService.addQuiz(q);
-                    setQuizzes(updated);
+                    const res = await dataService.addQuiz(q);
+                    if (res.success) await loadAllData();
                   }}
                   onDeleteQuiz={async (id) => {
-                    const updated = await dataService.deleteQuiz(id);
-                    setQuizzes(updated);
+                    const res = await dataService.deleteQuiz(id);
+                    if (res.success) await loadAllData();
                   }}
                 />
               </div>
@@ -573,20 +669,21 @@ const App: React.FC = () => {
       <footer className="bg-white dark:bg-pakgreen-dark text-pakgreen dark:text-white border-t-4 border-gold-light pt-24 pb-12 mt-auto transition-colors islamic-pattern shadow-[0_-20px_50px_rgba(0,0,0,0.1)] dark:shadow-[0_-20px_50px_rgba(0,0,0,0.4)]">
         <div className="max-w-7xl mx-auto px-6 sm:px-12 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-16 mb-24">
           <div className="flex flex-col gap-8">
-            <div className="flex items-center gap-4">
-              <div className="bg-pakgreen p-3 rounded-xl border border-gold/30">
-                <BookOpen className="h-8 w-8 text-white" />
+            <div className="flex items-center gap-4 cursor-pointer" onClick={() => handleNavigate('home')}>
+              <div className="bg-pakgreen p-1 rounded-xl border border-gold/30 w-16 h-16 flex items-center justify-center overflow-hidden">
+                <img src="https://i.ibb.co/1fWNV4p/logo.png" alt="MM Logo" className="w-full h-full object-contain" />
               </div>
-              <span className="text-2xl font-black uppercase tracking-tighter text-pakgreen dark:text-gold-light">Professional Academy</span>
+              <span className="text-2xl font-black uppercase tracking-tighter text-pakgreen dark:text-gold-light">MM Online Academy</span>
             </div>
             <p className="text-zinc-500 dark:text-zinc-400 text-[11px] font-black leading-relaxed max-w-xs uppercase tracking-tight">
-              MM ONLINE: Bridging the gap between national ambition and elite academic standard across Pakistan.
+              MM ONLINE ACADEMY: Bridging the gap between national ambition and elite academic standard across Pakistan.
             </p>
             <div className="flex flex-wrap gap-4">
                <a href="https://www.facebook.com/MirpurkhasAliTalpurTown/" target="_blank" rel="noopener noreferrer" className="p-2.5 bg-zinc-100 dark:bg-pakgreen-deepest border border-zinc-200 dark:border-gold/10 rounded-xl hover:text-gold-light transition-all text-pakgreen dark:text-gold-light"><Facebook className="h-5 w-5" /></a>
                <a href="https://www.tiktok.com/@majid.maqsood8" target="_blank" rel="noopener noreferrer" className="p-2.5 bg-zinc-100 dark:bg-pakgreen-deepest border border-zinc-200 dark:border-gold/10 rounded-xl hover:text-gold-light transition-all text-pakgreen dark:text-gold-light"><Music className="h-5 w-5" /></a>
                <a href="https://www.instagram.com/majid.maqsood01/?hl=en" target="_blank" rel="noopener noreferrer" className="p-2.5 bg-zinc-100 dark:bg-pakgreen-deepest border border-zinc-200 dark:border-gold/10 rounded-xl hover:text-gold-light transition-all text-pakgreen dark:text-gold-light"><Instagram className="h-5 w-5" /></a>
                <a href="https://www.linkedin.com/in/majid-maqsood-633444374/" target="_blank" rel="noopener noreferrer" className="p-2.5 bg-zinc-100 dark:bg-pakgreen-deepest border border-zinc-200 dark:border-gold/10 rounded-xl hover:text-gold-light transition-all text-pakgreen dark:text-gold-light"><Linkedin className="h-5 w-5" /></a>
+               <a href="https://wa.me/923182990927" target="_blank" rel="noopener noreferrer" className="p-2.5 bg-zinc-100 dark:bg-pakgreen-deepest border border-zinc-200 dark:border-gold/10 rounded-xl hover:text-[#25D366] transition-all text-[#25D366]"><MessageCircle className="h-5 w-5" /></a>
             </div>
           </div>
 
@@ -639,7 +736,7 @@ const App: React.FC = () => {
               <div className="p-2 bg-pakgreen/10 dark:bg-gold-light/10 border border-gold/20 rounded-lg">
                  <ShieldCheck className="h-5 w-5 text-pakgreen dark:text-gold-light" />
               </div>
-              <p className="text-[10px] font-black text-zinc-500 dark:text-zinc-500 uppercase tracking-[0.4em]">© 2026 PROFESSIONAL ACADEMY — THE NATIONAL STANDARD</p>
+              <p className="text-[10px] font-black text-zinc-500 dark:text-zinc-500 uppercase tracking-[0.4em]">© 2026 MM ONLINE ACADEMY — THE NATIONAL STANDARD</p>
            </div>
            <div className="flex items-center gap-8">
               <span className="text-[9px] font-black text-zinc-400 uppercase tracking-widest cursor-pointer hover:text-gold-light">Privacy</span>

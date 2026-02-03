@@ -2,7 +2,7 @@ import { Notification, SubCategory, Quiz, StudyNote, QuizFeedback } from '../typ
 
 /**
  * CONFIGURATION:
- * Pointing to your live domain API with 'www' to prevent redirection issues.
+ * Pointing to your live domain API.
  */
 const API_BASE_URL = 'https://www.mmtestpreparation.com/api.php'; 
 
@@ -12,7 +12,6 @@ export const dataService = {
     const route = segments[0];
     const id = segments[1];
     
-    // Construct URL with query parameters for the PHP router
     let url = `${API_BASE_URL}?route=${encodeURIComponent(route)}`;
     if (id) url += `&id=${encodeURIComponent(id)}`;
 
@@ -26,13 +25,12 @@ export const dataService = {
         body: body ? JSON.stringify(body) : undefined
       });
 
-      // Special fallback for login if POST is converted to GET or rejected with 405
-      if (route === 'login' && (response.status === 405 || response.status === 404)) {
-         console.warn("POST Login failed with method error, attempting GET fallback...");
+      // Special fallback for login if server strips POST data
+      if (route === 'login' && !response.ok) {
+         console.warn("Retrying login with alternative method...");
          const fallbackUrl = `${url}&username=${encodeURIComponent(body.username)}&password=${encodeURIComponent(body.password)}`;
-         const fallbackResponse = await fetch(fallbackUrl);
-         const fallbackText = await fallbackResponse.text();
-         return JSON.parse(fallbackText);
+         const fbRes = await fetch(fallbackUrl);
+         return await fbRes.json();
       }
 
       const text = await response.text();
@@ -40,11 +38,11 @@ export const dataService = {
       try {
         data = JSON.parse(text);
       } catch (e) {
-        data = { error: text || `HTTP ${response.status}` };
+        data = { success: false, error: text || "API returned non-JSON response" };
       }
 
       if (!response.ok) {
-        throw new Error(data.error || data.debug || `HTTP ${response.status}`);
+        throw new Error(data.error || data.debug || `Server Error ${response.status}`);
       }
 
       if (method === 'GET' && !id) {
@@ -52,24 +50,16 @@ export const dataService = {
       }
       return data;
     } catch (error: any) {
-      console.error("[DataService Error]", error);
-      
-      // If the error happened during a POST login, try a one-time GET fallback here as well
-      if (endpoint.includes('login') && method === 'POST') {
-         try {
-            const fallbackUrl = `${url}&username=${encodeURIComponent(body.username)}&password=${encodeURIComponent(body.password)}`;
-            const fbRes = await fetch(fallbackUrl);
-            return await fbRes.json();
-         } catch (innerErr) {
-            return { success: false, error: "Authentication system failure.", debug: error.message };
-         }
-      }
-
+      console.error("[DataService Request Failed]", error);
       if (method === 'GET' && !id) return [];
-      return { success: false, error: error.message || "Connection failed", debug: error.message };
+      // Pass back full error object for UI feedback
+      return { success: false, error: error.message, debug: error.message };
     }
   },
 
+  testConnection: () => dataService.request('/db_test'),
+  repairDatabase: () => dataService.request('/initialize_db'),
+  
   login: (username: string, password: string) => 
     dataService.request('/login', 'POST', { username, password }),
 

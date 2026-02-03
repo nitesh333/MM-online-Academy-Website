@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Professional Academy - Pakistan's Elite Legal Portal</title>
+  <title>MM Online Academy - Pakistan's Elite Legal Portal</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -23,12 +23,12 @@
             pakgreen: {
               DEFAULT: '#01411C',
               light: '#02612a',
-              dark: '#012111', // Night Emerald
-              deepest: '#01160b', // Midnight Green
+              dark: '#012111', 
+              deepest: '#01160b', 
             },
             gold: {
               DEFAULT: '#D4AF37',
-              light: '#f3d277', // Moonlit Gold
+              light: '#f3d277', 
               dark: '#b8860b',
             }
           },
@@ -73,24 +73,20 @@
       flex-direction: column;
     }
 
-    /* Islamic Geometric Pattern Background - Refined for Contrast */
     .islamic-pattern {
       background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M30 0l5.878 18.09h19.022l-15.388 11.18 5.878 18.09L30 36.18l-15.39 11.18 5.878-18.09L5.1 18.09h19.022L30 0z' fill='%2301411C' fill-opacity='0.03' fill-rule='evenodd'/%3E%3C/svg%3E");
     }
     
     .dark .islamic-pattern {
-      /* Golden threads pattern for dark mode */
       background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M30 0l5.878 18.09h19.022l-15.388 11.18 5.878 18.09L30 36.18l-15.39 11.18 5.878-18.09L5.1 18.09h19.022L30 0z' fill='%23f3d277' fill-opacity='0.04' fill-rule='evenodd'/%3E%3C/svg%3E");
     }
 
-    /* Scrollbar styles - Prestigious Theme */
     ::-webkit-scrollbar { width: 6px; }
     ::-webkit-scrollbar-track { background-color: transparent; }
     ::-webkit-scrollbar-thumb { background-color: #01411C; border-radius: 9999px; }
     .dark ::-webkit-scrollbar-thumb { background-color: #f3d27744; }
     ::-webkit-scrollbar-thumb:hover { background-color: #D4AF37; }
 
-    /* Transitions */
     * {
       transition-property: background-color, border-color, color, fill, stroke, opacity, box-shadow, transform;
       transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
@@ -107,6 +103,7 @@
       "@google/genai": "https://esm.sh/@google/genai@^1.38.0",
       "lucide-react": "https://esm.sh/lucide-react@^0.563.0",
       "mammoth": "https://esm.sh/mammoth@^1.11.0",
+      "pdfjs-dist": "https://esm.sh/pdfjs-dist@4.0.379",
       "vite": "https://esm.sh/vite@^7.3.1",
       "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2"
     }

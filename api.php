@@ -1,22 +1,19 @@
 <?php
 /**
- * Professional Academy Backend API - Ultra-Stable Version
+ * Professional Academy Backend API - Fixed Schema Version
  */
 
-// 1. SET HEADERS
+// 1. SET HEADERS & CORS
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
-header("Access-Control-Max-Age: 86400");
 header("Content-Type: application/json; charset=UTF-8");
 
-// Handle pre-flight
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(200);
     exit;
 }
 
-// Buffer output to catch accidental echoes
 ob_start();
 
 error_reporting(E_ALL);
@@ -26,6 +23,10 @@ $host = "localhost";
 $db_name = "mmtestpr_mmtestprep"; 
 $username = "mmtestpr_nitesh";     
 $password = "mmtestprep123";      
+
+// MASTER CREDENTIALS - DEFINED GLOBALLY
+$MASTER_U = 'mmonlineacademy26@gmail.com';
+$MASTER_P = 'mmacademypak2026';
 
 try {
     $conn = new PDO("mysql:host=$host;dbname=$db_name", $username, $password);
@@ -42,129 +43,69 @@ $route = isset($_GET['route']) ? trim($_GET['route']) : '';
 $id = isset($_GET['id']) ? trim($_GET['id']) : '';
 $method = strtoupper($_SERVER['REQUEST_METHOD']);
 
-// ROBUST INPUT HANDLING
 $inputRaw = file_get_contents('php://input');
-$input = json_decode($inputRaw, true);
+$input = json_decode($inputRaw, true) ?? [];
+if (empty($input)) $input = $_POST;
 
-// Fallback to $_POST if JSON is empty/invalid
-if (empty($input)) {
-    $input = $_POST;
+// 1. Connection Test
+if ($route === 'db_test') {
+    ob_end_clean();
+    echo json_encode(["success" => true, "status" => "ONLINE", "database" => $db_name]);
+    exit;
 }
 
-/**
- * Helper to generate a safe token
- */
-function generateToken() {
-    if (function_exists('random_bytes')) {
-        return bin2hex(random_bytes(16));
-    }
-    if (function_exists('openssl_random_pseudo_bytes')) {
-        return bin2hex(openssl_random_pseudo_bytes(16));
-    }
-    return bin2hex(uniqid('', true));
-}
-
-// --- LOGIN ROUTE ---
+// 2. Authentication
 if ($route === 'login') {
-    // EMERGENCY FIX: Accept credentials from POST body OR URL parameters
-    // This solves the "Method Not Allowed" error caused by server redirects
-    $raw_user = (string)($input['username'] ?? $_GET['username'] ?? '');
-    $raw_pass = (string)($input['password'] ?? $_GET['password'] ?? '');
+    $u = strtolower(trim($input['username'] ?? $_GET['username'] ?? ''));
+    $p = trim($input['password'] ?? $_GET['password'] ?? '');
     
-    // Clean strings
-    $user = strtolower(trim($raw_user));
-    $pass = trim($raw_pass);
-    
-    // Master Credentials
-    $MASTER_USER = 'mmonlineacademy26@gmail.com';
-    $MASTER_PASS = 'mmacademypak2026';
-
-    $isMasterMatch = (strcmp($user, strtolower($MASTER_USER)) === 0 && strcmp($pass, $MASTER_PASS) === 0);
-
-    if ($isMasterMatch) {
-        $token = generateToken();
+    if ($u === strtolower($MASTER_U) && $p === $MASTER_P) {
         ob_end_clean();
-        echo json_encode([
-            "success" => true, 
-            "token" => $token, 
-            "username" => $MASTER_USER,
-            "debug" => "Login successful via " . $method
-        ]);
+        echo json_encode(["success" => true, "token" => bin2hex(random_bytes(16)), "user" => $MASTER_U]);
         exit;
     }
 
     try {
         $stmt = $conn->prepare("SELECT * FROM admins WHERE LOWER(username) = ? LIMIT 1");
-        $stmt->execute([$user]);
-        $admin = $stmt->fetch(PDO::FETCH_ASSOC);
-        
-        if ($admin) {
-            $stored = trim($admin['password']);
-            $isCorrect = false;
-
-            if (password_verify($pass, $stored)) {
-                $isCorrect = true;
-            } else if (strcmp($pass, $stored) === 0) {
-                $isCorrect = true;
-                // Auto-upgrade to hash
-                if (!password_get_info($stored)['algo']) {
-                    $newHash = password_hash($pass, PASSWORD_DEFAULT);
-                    $u = $conn->prepare("UPDATE admins SET password = ? WHERE id = ?");
-                    $u->execute([$newHash, $admin['id']]);
-                }
-            }
-
-            if ($isCorrect) {
-                $token = generateToken();
-                ob_end_clean();
-                echo json_encode([
-                    "success" => true, 
-                    "token" => $token, 
-                    "username" => $admin['username'],
-                    "debug" => "Auth success"
-                ]);
-                exit;
-            }
+        $stmt->execute([$u]);
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+        if ($user && (password_verify($p, $user['password']) || $p === $user['password'])) {
+            ob_end_clean();
+            echo json_encode(["success" => true, "token" => bin2hex(random_bytes(16)), "user" => $user['username']]);
+            exit;
         }
-        
+    } catch (Exception $e) {}
+
+    ob_end_clean();
+    http_response_code(401);
+    echo json_encode(["success" => false, "error" => "Invalid credentials"]);
+    exit;
+}
+
+// 3. FULL DATABASE INITIALIZATION
+if ($route === 'repair_admin' || $route === 'initialize_db') {
+    try {
+        $conn->exec("CREATE TABLE IF NOT EXISTS admins (id INT AUTO_INCREMENT PRIMARY KEY, username VARCHAR(100) NOT NULL UNIQUE, password VARCHAR(255) NOT NULL)");
+        $conn->exec("CREATE TABLE IF NOT EXISTS notifications (id VARCHAR(50) PRIMARY KEY, title VARCHAR(255), date VARCHAR(20), content TEXT, type VARCHAR(50))");
+        $conn->exec("CREATE TABLE IF NOT EXISTS categories (id VARCHAR(50) PRIMARY KEY, name VARCHAR(100), description TEXT)");
+        $conn->exec("CREATE TABLE IF NOT EXISTS quizzes (id VARCHAR(50) PRIMARY KEY, title VARCHAR(255), subCategoryId VARCHAR(50), questions LONGTEXT, videoUrl VARCHAR(255))");
+        $conn->exec("CREATE TABLE IF NOT EXISTS notes (id VARCHAR(50) PRIMARY KEY, title VARCHAR(255), url LONGTEXT, subCategoryId VARCHAR(50), type VARCHAR(20))");
+        $conn->exec("CREATE TABLE IF NOT EXISTS feedback (id VARCHAR(50) PRIMARY KEY, quizId VARCHAR(50), quizTitle VARCHAR(255), studentName VARCHAR(100), studentEmail VARCHAR(100), comment TEXT, date VARCHAR(20), isVisible TINYINT(1) DEFAULT 0)");
+
+        $conn->exec("DELETE FROM admins WHERE username = '$MASTER_U'");
+        $stmt = $conn->prepare("INSERT INTO admins (username, password) VALUES (?, ?)");
+        $stmt->execute([$MASTER_U, password_hash($MASTER_P, PASSWORD_DEFAULT)]);
+
         ob_end_clean();
-        http_response_code(401);
-        echo json_encode([
-            "success" => false, 
-            "error" => "Invalid ID or Password",
-            "debug" => "Method: $method | ULen: " . strlen($user) . " | PLen: " . strlen($pass)
-        ]);
+        echo json_encode(["success" => true, "message" => "All tables initialized successfully."]);
     } catch (Exception $e) {
         ob_end_clean();
         http_response_code(500);
-        echo json_encode(["success" => false, "error" => "Internal Login Error", "debug" => $e->getMessage()]);
+        echo json_encode(["success" => false, "error" => "INITIALIZATION_FAILED", "debug" => $e->getMessage()]);
     }
     exit;
 }
 
-// --- UTILITY ROUTES ---
-if ($route === 'repair_admin') {
-    try {
-        $conn->exec("ALTER TABLE admins MODIFY COLUMN password VARCHAR(255) NOT NULL");
-        $conn->exec("DELETE FROM admins WHERE username = 'mmonlineacademy26@gmail.com'");
-        $stmt = $conn->prepare("INSERT INTO admins (username, password) VALUES (?, ?)");
-        $stmt->execute(['mmonlineacademy26@gmail.com', password_hash('mmacademypak2026', PASSWORD_DEFAULT)]);
-        ob_end_clean();
-        echo json_encode(["success" => true, "message" => "Admin credentials reset to master defaults."]);
-    } catch (Exception $e) {
-        ob_end_clean();
-        echo json_encode(["success" => false, "error" => $e->getMessage()]);
-    }
-    exit;
-}
-
-if ($route === 'db_test') {
-    ob_end_clean();
-    echo json_encode(["success" => true, "status" => "Database Connected Successfully"]);
-    exit;
-}
-
-// --- CRUD ENGINE ---
 $tables = [
     'notifications' => 'notifications', 
     'categories' => 'categories', 
@@ -179,7 +120,7 @@ $table = $tables[$route] ?? null;
 if (!$table) {
     ob_end_clean();
     http_response_code(404);
-    echo json_encode(["success" => false, "error" => "Endpoint not found: " . $route]);
+    echo json_encode(["success" => false, "error" => "ROUTE_NOT_FOUND", "route" => $route]);
     exit;
 }
 
@@ -189,23 +130,23 @@ try {
             if ($id) {
                 $stmt = $conn->prepare("SELECT * FROM $table WHERE id = ?");
                 $stmt->execute([$id]);
-                $res = $stmt->fetch(PDO::FETCH_ASSOC);
-                if ($table === 'quizzes' && $res) $res['questions'] = json_decode($res['questions']);
-                if ($table === 'admins' && $res) unset($res['password']);
-                $data = $res ?: new stdClass();
+                $data = $stmt->fetch(PDO::FETCH_ASSOC);
+                if ($table === 'quizzes' && $data) $data['questions'] = json_decode($data['questions']);
+                if ($table === 'admins' && $data) unset($data['password']);
+                $result = $data ?: (object)[];
             } else {
                 $stmt = $conn->prepare("SELECT * FROM $table ORDER BY id DESC");
                 $stmt->execute();
-                $data = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 if ($table === 'quizzes') {
-                    foreach ($data as &$r) { $r['questions'] = json_decode($r['questions'] ?? '[]'); }
+                    foreach ($result as &$r) { $r['questions'] = json_decode($r['questions'] ?? '[]'); }
                 }
                 if ($table === 'admins') {
-                    foreach ($data as &$r) { unset($r['password']); }
+                    foreach ($result as &$r) { unset($r['password']); }
                 }
             }
             ob_end_clean();
-            echo json_encode($data);
+            echo json_encode($result);
             break;
 
         case 'POST':
@@ -253,8 +194,17 @@ try {
             echo json_encode(["success" => true]);
             break;
     }
+} catch (PDOException $e) {
+    ob_end_clean();
+    http_response_code(500);
+    if ($e->getCode() == '42S02') {
+        echo json_encode(["success" => false, "error" => "TABLE_MISSING", "debug" => "Please go to Account -> System Health and click 'Repair & Initialize Tables'."]);
+    } else {
+        echo json_encode(["success" => false, "error" => "SQL_ERROR", "debug" => $e->getMessage()]);
+    }
 } catch (Exception $e) {
     ob_end_clean();
     http_response_code(500);
-    echo json_encode(["success" => false, "error" => "CRUD_ERROR", "debug" => $e->getMessage()]);
+    echo json_encode(["success" => false, "error" => "ENGINE_FAILURE", "debug" => $e->getMessage()]);
 }
+?>

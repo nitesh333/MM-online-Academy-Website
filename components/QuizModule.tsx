@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { CheckCircle, XCircle, RefreshCw, ChevronRight, FileText, Youtube, MessageSquare, Send, Mail, User, Quote, Star } from 'lucide-react';
 import { Quiz, QuizFeedback, SubCategory } from '../types';
@@ -99,7 +98,7 @@ const QuizModule: React.FC<QuizModuleProps> = ({ quiz, categories, onComplete })
                     required 
                     value={feedbackForm.name} 
                     onChange={e => setFeedbackForm({...feedbackForm, name: e.target.value})} 
-                    className="w-full bg-zinc-50 dark:bg-pakgreen-deepest border-2 border-zinc-200 dark:border-gold/10 p-5 rounded-2xl text-xs font-black uppercase tracking-widest outline-none focus:border-gold-light transition-all" 
+                    className="w-full bg-zinc-50 dark:bg-pakgreen-deepest border-2 border-zinc-200 dark:border-gold/10 p-5 rounded-2xl text-sm font-medium outline-none focus:border-gold-light transition-all" 
                     placeholder="e.g. Abdullah Khan" 
                   />
                 </div>
@@ -109,7 +108,7 @@ const QuizModule: React.FC<QuizModuleProps> = ({ quiz, categories, onComplete })
                     type="email" 
                     value={feedbackForm.email} 
                     onChange={e => setFeedbackForm({...feedbackForm, email: e.target.value})} 
-                    className="w-full bg-zinc-50 dark:bg-pakgreen-deepest border-2 border-zinc-200 dark:border-gold/10 p-5 rounded-2xl text-xs font-black uppercase tracking-widest outline-none focus:border-gold-light transition-all" 
+                    className="w-full bg-zinc-50 dark:bg-pakgreen-deepest border-2 border-zinc-200 dark:border-gold/10 p-5 rounded-2xl text-sm font-medium outline-none focus:border-gold-light transition-all" 
                     placeholder="student@email.com" 
                   />
                 </div>
@@ -121,7 +120,7 @@ const QuizModule: React.FC<QuizModuleProps> = ({ quiz, categories, onComplete })
                   value={feedbackForm.comment} 
                   onChange={e => setFeedbackForm({...feedbackForm, comment: e.target.value})} 
                   rows={4} 
-                  className="w-full bg-zinc-50 dark:bg-pakgreen-deepest border-2 border-zinc-200 dark:border-gold/10 p-6 rounded-2xl text-xs font-black uppercase tracking-widest outline-none focus:border-gold-light transition-all" 
+                  className="w-full bg-zinc-50 dark:bg-pakgreen-deepest border-2 border-zinc-200 dark:border-gold/10 p-6 rounded-2xl text-sm font-medium outline-none focus:border-gold-light transition-all" 
                   placeholder="Share your experience with this quiz..."
                 />
               </div>
