@@ -1,9 +1,6 @@
 import { Notification, SubCategory, Quiz, StudyNote, QuizFeedback } from '../types';
 
-/**
- * CONFIGURATION:
- * Pointing to your live domain API.
- */
+// Absolute URL to ensure consistency
 const API_BASE_URL = 'https://www.mmtestpreparation.com/api.php'; 
 
 export const dataService = {
@@ -19,41 +16,29 @@ export const dataService = {
       const response = await fetch(url, {
         method,
         mode: 'cors',
-        headers: { 
-          'Content-Type': 'application/json'
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: body ? JSON.stringify(body) : undefined
       });
-
-      // Special fallback for login if server strips POST data
-      if (route === 'login' && !response.ok) {
-         console.warn("Retrying login with alternative method...");
-         const fallbackUrl = `${url}&username=${encodeURIComponent(body.username)}&password=${encodeURIComponent(body.password)}`;
-         const fbRes = await fetch(fallbackUrl);
-         return await fbRes.json();
-      }
 
       const text = await response.text();
       let data;
       try {
         data = JSON.parse(text);
       } catch (e) {
-        data = { success: false, error: text || "API returned non-JSON response" };
+        console.error("Non-JSON Server Response:", text);
+        throw new Error("Institutional Error: Invalid response format from academic server.");
       }
 
       if (!response.ok) {
-        throw new Error(data.error || data.debug || `Server Error ${response.status}`);
+        throw new Error(data.error || `System Error: ${response.status}`);
       }
 
-      if (method === 'GET' && !id) {
-        return Array.isArray(data) ? data : [];
-      }
       return data;
     } catch (error: any) {
-      console.error("[DataService Request Failed]", error);
+      console.error("[DataService.request] Critical Failure:", error);
+      if (route === 'login' || route === 'db_test' || route === 'initialize_db') throw error;
       if (method === 'GET' && !id) return [];
-      // Pass back full error object for UI feedback
-      return { success: false, error: error.message, debug: error.message };
+      throw error;
     }
   },
 

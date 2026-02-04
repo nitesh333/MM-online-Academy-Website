@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Menu, X, BookOpen, Facebook, Twitter, Youtube, Phone, Mail, ChevronRight, Sun, Moon, Star, Instagram, Linkedin } from 'lucide-react';
-import { AppState } from '../types';
+import { AppState } from './types';
 
 interface NavbarProps {
   onNavigate: (view: AppState['view'], subId?: string) => void;
