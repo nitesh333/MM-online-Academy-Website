@@ -1,4 +1,3 @@
-
 export enum CategoryType {
   LAW = 'Law',
   GENERAL = 'General/Admission',
@@ -16,6 +15,7 @@ export interface Question {
   text: string;
   options: string[];
   correctAnswer: number; // Index of the correct option
+  explanation?: string; // Optional explanation for the answer
 }
 
 export interface Quiz {

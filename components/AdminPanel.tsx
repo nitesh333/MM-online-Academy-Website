@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Trash2, Loader2, Database, Activity, RefreshCw, FileUp, FileText, CheckCircle2, AlertCircle, ChevronRight, UploadCloud } from 'lucide-react';
+import { Trash2, Loader2, Database, Activity, RefreshCw, FileUp, FileText, CheckCircle2, AlertCircle, ChevronRight, UploadCloud, BrainCircuit } from 'lucide-react';
 import { Notification, SubCategory, Quiz, Question } from '../types';
 import { dataService } from '../services/dataService';
 import { parserService } from '../services/parserService';
+import { parseQuizFromText } from '../services/geminiService';
 
 const AdminInput = ({ className, ...props }: React.InputHTMLAttributes<HTMLInputElement>) => (
   <input 
@@ -44,6 +45,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
 
   // Parsing State
   const [isParsing, setIsParsing] = useState(false);
+  const [parsingStep, setParsingStep] = useState<string>('');
   const [parsedQuestions, setParsedQuestions] = useState<Partial<Question>[]>([]);
   const [parseError, setParseError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -54,12 +56,12 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     title: string;
     subCategoryId: string;
     videoUrl: string;
-    questions: { text: string; options: string[]; correctAnswer: number }[];
+    questions: { text: string; options: string[]; correctAnswer: number; explanation?: string }[];
   }>({
     title: '',
     subCategoryId: categories[0]?.id || 'lat',
     videoUrl: '',
-    questions: [{ text: '', options: ['', '', '', ''], correctAnswer: 0 }]
+    questions: [{ text: '', options: ['', '', '', ''], correctAnswer: 0, explanation: '' }]
   });
 
   useEffect(() => { checkHealth(); }, []);
@@ -98,21 +100,39 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     setIsParsing(true);
     setParseError(null);
     setParsedQuestions([]);
+    setParsingStep('Extracting Text from ' + file.name + '...');
 
     try {
       const text = await parserService.extractTextFromFile(file);
-      const results = parserService.parseMCQs(text);
+      setParsingStep('Detecting MCQ Patterns...');
+      let results = parserService.parseMCQs(text);
       
       if (results.length === 0) {
-        setParseError("No valid MCQs detected. Ensure questions start with 'Q1.' and options with 'A)'.");
+        setParseError("No valid MCQs detected. Ensure formatting like: 1. Question... A. Option...");
       } else {
+        // Find if any answers are missing (-1) and trigger AI
+        const missingAnswers = results.some(r => r.correctAnswer === -1);
+        if (missingAnswers) {
+          setParsingStep('Running Smart Key Analysis (Gemini)...');
+          results = await parseQuizFromText(results);
+        }
+
         setParsedQuestions(results);
-        setManualQuizForm(prev => ({ ...prev, questions: results as any[] }));
+        setManualQuizForm(prev => ({ 
+          ...prev, 
+          questions: results.map(q => ({
+            text: q.text || '',
+            options: q.options || ['', '', '', ''],
+            correctAnswer: q.correctAnswer || 0,
+            explanation: q.explanation || ''
+          }))
+        }));
       }
     } catch (err: any) {
       setParseError(err.message || "Failed to process document.");
     } finally {
       setIsParsing(false);
+      setParsingStep('');
     }
   };
 
@@ -131,7 +151,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
           id: `q_${idx}_${Date.now()}`, 
           text: q.text,
           options: q.options,
-          correctAnswer: q.correctAnswer
+          correctAnswer: q.correctAnswer,
+          explanation: q.explanation
       }))
     };
     onAddQuiz(newQuiz);
@@ -140,7 +161,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       title: '',
       subCategoryId: categories[0]?.id || 'lat',
       videoUrl: '',
-      questions: [{ text: '', options: ['', '', '', ''], correctAnswer: 0 }]
+      questions: [{ text: '', options: ['', '', '', ''], correctAnswer: 0, explanation: '' }]
     });
     setParsedQuestions([]);
   };
@@ -224,14 +245,18 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
               />
               <UploadCloud className="h-12 w-12 text-slate-600 mx-auto mb-4 group-hover:text-blue-500 transition-colors" />
               <h3 className="text-white font-black text-lg uppercase tracking-tight mb-2">Quiz Upload Engine</h3>
-              <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest mb-6">Import MCQs from Institutional PDF or Word Documents</p>
+              <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest mb-6">Supports Standard Format: 1. Question... A. Option... B. Option...</p>
               
               <button 
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isParsing}
                 className="bg-blue-600/10 text-blue-400 border border-blue-500/30 px-8 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-blue-600 hover:text-white transition-all disabled:opacity-50"
               >
-                {isParsing ? <span className="flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Analyzing Document...</span> : "Select Document"}
+                {isParsing ? (
+                  <span className="flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" /> {parsingStep}
+                  </span>
+                ) : "Select Document"}
               </button>
 
               {parseError && (
@@ -241,8 +266,13 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
               )}
 
               {parsedQuestions.length > 0 && (
-                <div className="mt-6 p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-emerald-400 text-[10px] font-black uppercase flex items-center justify-center gap-2 animate-in zoom-in-95">
-                  <CheckCircle2 className="h-4 w-4" /> {parsedQuestions.length} Questions Extracted & Ready for Review
+                <div className="mt-6 p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-emerald-400 text-[10px] font-black uppercase flex flex-col items-center gap-2 animate-in zoom-in-95">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4" /> {parsedQuestions.length} Questions Processed
+                  </div>
+                  <div className="flex items-center gap-2 text-[8px] text-emerald-500/60 tracking-[0.2em]">
+                    <BrainCircuit className="h-3 w-3" /> Smart Analysis Applied to Missing Keys
+                  </div>
                 </div>
               )}
             </div>
@@ -262,7 +292,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                   </div>
                </div>
 
-               <div className="space-y-4 max-h-[500px] overflow-y-auto pr-4 custom-scrollbar">
+               <div className="space-y-4 max-h-[600px] overflow-y-auto pr-4 custom-scrollbar">
                   {manualQuizForm.questions.map((q, idx) => (
                     <div key={idx} className="p-6 bg-slate-900/50 rounded-2xl border border-slate-800 space-y-4 shadow-inner">
                         <div className="flex justify-between items-center mb-2">
@@ -305,6 +335,20 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                              </div>
                            ))}
                         </div>
+                        <div className="space-y-2">
+                           <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-1">Explanation</label>
+                           <textarea 
+                              value={q.explanation} 
+                              onChange={e => {
+                                 const nq = [...manualQuizForm.questions];
+                                 nq[idx].explanation = e.target.value;
+                                 setManualQuizForm({...manualQuizForm, questions: nq});
+                              }}
+                              className="w-full p-3 bg-slate-800 text-white rounded text-sm border border-slate-700"
+                              rows={2}
+                              placeholder="Why is this answer correct?"
+                           />
+                        </div>
                     </div>
                   ))}
                </div>
@@ -314,7 +358,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                         type="button" 
                         onClick={() => setManualQuizForm({
                             ...manualQuizForm, 
-                            questions: [...manualQuizForm.questions, { text: '', options: ['', '', '', ''], correctAnswer: 0 }]
+                            questions: [...manualQuizForm.questions, { text: '', options: ['', '', '', ''], correctAnswer: 0, explanation: '' }]
                         })}
                         className="flex-grow bg-slate-800 text-slate-300 py-4 rounded-xl font-black uppercase text-[10px] tracking-widest border border-slate-700 hover:bg-slate-700 transition-all"
                     >

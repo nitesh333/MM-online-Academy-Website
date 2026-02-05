@@ -1,4 +1,3 @@
-import * as mammoth from 'mammoth';
 import { Question } from '../types';
 
 /**
@@ -12,15 +11,21 @@ export const parserService = {
     
     // 1. Handle DOCX
     if (file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") {
+      // @ts-ignore - mammoth is loaded from CDN
+      const mammoth = window.mammoth;
       const result = await mammoth.extractRawText({ arrayBuffer });
       return result.value;
     }
 
     // 2. Handle PDF
     if (file.type === "application/pdf") {
-      // @ts-ignore - pdfjsLib is loaded from CDN in index.html
-      const pdfjsLib = window['pdfjs-dist/build/pdf'];
-      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://esm.sh/pdfjs-dist@4.0.379/build/pdf.worker.mjs';
+      // @ts-ignore - pdfjsLib is loaded from CDN
+      const pdfjsLib = window['pdfjsLib'] || await import('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.min.mjs');
+      
+      // Ensure worker is set up
+      if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.worker.min.mjs';
+      }
       
       const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
       let fullText = "";
@@ -38,12 +43,13 @@ export const parserService = {
   },
 
   parseMCQs(text: string): Partial<Question>[] {
-    // Normalize text
-    text = text.replace(/\r/g, "");
+    // Normalize text: remove line breaks that split sentences unnecessarily
+    text = text.replace(/\r/g, "").replace(/\n\s*\n/g, "\n");
 
-    // Split questions based on common patterns: Q1., Q 1., 1. 
-    // This regex looks for a digit followed by a period or parenthesis at the start of a line
-    const blocks = text.split(/\n(?=Q?\d+[\.\)])/).filter(Boolean);
+    // Split questions by standard numbering (1. 2. 3.) at start of lines or preceded by newline
+    // This regex looks for a digit followed by a dot at the start of a logical block
+    const blocks = text.split(/\n?(?=\d+\.\s+)/).filter(Boolean);
+
     const questions: Partial<Question>[] = [];
 
     for (const block of blocks) {
@@ -52,31 +58,41 @@ export const parserService = {
         .map(l => l.trim())
         .filter(Boolean);
 
-      if (lines.length < 5) continue;
+      if (lines.length < 3) continue;
 
-      const questionText = lines[0].replace(/^Q?\d+[\.\)]\s*/, "");
+      // Extract question (strip the 1. part)
+      const questionTitle = lines[0].replace(/^\d+\.\s+/, "");
 
-      // Identify options A, B, C, D
-      const optionLines = lines.filter(l => /^[A-D][\).\)]/i.test(l));
+      // Find options: A. B. C. D.
+      const optionLines = lines.filter(l => /^[A-D]\.\s+/.test(l));
+      
+      // If we don't find enough options in the lines, the block might be formatted differently
       if (optionLines.length < 2) continue;
 
-      const options = optionLines.map(opt => opt.replace(/^[A-D][\).\)]\s*/i, ""));
+      const options = optionLines.map(opt => opt.replace(/^[A-D]\.\s+/, ""));
 
-      // Find answer key
-      const answerLine = lines.find(l => l.toLowerCase().includes("answer"));
-      let correctIndex = 0;
+      // Correct Answer line check (e.g. Correct Answer: A) )
+      const answerLine = lines.find(l => l.toLowerCase().includes("correct answer"));
+      let correctIndex: number | undefined = undefined;
 
       if (answerLine) {
-        const match = answerLine.match(/[A-D]/i);
+        const match = answerLine.match(/[A-D]\)/i);
         if (match) {
-          correctIndex = match[0].toUpperCase().charCodeAt(0) - 65;
+          correctIndex = match[0][0].toUpperCase().charCodeAt(0) - 65;
         }
       }
 
+      // Explanation extraction
+      const explanationLine = lines.find(l => l.toLowerCase().startsWith("explanation:"));
+      const explanation = explanationLine
+        ? explanationLine.replace(/^explanation:\s*/i, "").trim()
+        : "";
+
       questions.push({
-        text: questionText,
-        options: options.slice(0, 4), // Ensure only 4 options
-        correctAnswer: correctIndex >= 0 && correctIndex < options.length ? correctIndex : 0
+        text: questionTitle,
+        options: options.slice(0, 4),
+        correctAnswer: correctIndex ?? -1, // -1 means we need AI to solve it
+        explanation: explanation
       });
     }
 
