@@ -13,18 +13,11 @@ export default defineConfig({
     sourcemap: false,
     minify: 'terser',
     rollupOptions: {
-      external: ['pdfjs-dist', 'pdfjs-dist/build/pdf.worker.mjs'],
       output: {
         manualChunks: {
-          vendor: ['react', 'react-dom', 'lucide-react']
-        },
-        globals: {
-          'pdfjs-dist': 'pdfjsLib'
+          vendor: ['react', 'react-dom', 'lucide-react', 'mammoth', 'pdfjs-dist']
         }
       }
     }
-  },
-  optimizeDeps: {
-    exclude: ['pdfjs-dist']
   }
 });
