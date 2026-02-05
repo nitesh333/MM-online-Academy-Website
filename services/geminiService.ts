@@ -1,6 +1,7 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { Question } from "../types";
 
+// The API key is injected via Vite's define block and typed in env.d.ts
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 export const parseQuizFromText = async (questions: Partial<Question>[]): Promise<Partial<Question>[]> => {

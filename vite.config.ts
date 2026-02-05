@@ -5,7 +5,6 @@ export default defineConfig({
   plugins: [react()],
   base: './',
   define: {
-    // Safely handle process.env for both build and runtime
     'process.env.API_KEY': JSON.stringify(process.env.API_KEY || '')
   },
   build: {
@@ -14,7 +13,6 @@ export default defineConfig({
     sourcemap: false,
     minify: 'terser',
     rollupOptions: {
-      // Mark pdfjs-dist as external so Rollup doesn't try to find it locally
       external: ['pdfjs-dist', 'pdfjs-dist/build/pdf.worker.mjs'],
       output: {
         manualChunks: {
@@ -27,7 +25,6 @@ export default defineConfig({
     }
   },
   optimizeDeps: {
-    // Prevent Vite from trying to pre-bundle the external library
     exclude: ['pdfjs-dist']
   }
 });

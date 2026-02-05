@@ -11,21 +11,19 @@ export const parserService = {
     
     // 1. Handle DOCX
     if (file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") {
-      // @ts-ignore - mammoth is loaded from CDN
-      const mammoth = window.mammoth;
+      // @ts-ignore - mammoth is loaded from CDN or local
+      const mammoth = (window as any).mammoth || await import('mammoth');
       const result = await mammoth.extractRawText({ arrayBuffer });
       return result.value;
     }
 
     // 2. Handle PDF
     if (file.type === "application/pdf") {
-      // @ts-ignore - pdfjsLib is loaded from CDN
-      const pdfjsLib = window['pdfjsLib'] || await import('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.min.mjs');
+      // Import PDF.js dynamically to avoid build-time worker issues
+      const pdfjsLib = await import('pdfjs-dist');
       
-      // Ensure worker is set up
-      if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
-        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.worker.min.mjs';
-      }
+      // Configure worker for PDF.js
+      pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
       
       const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
       let fullText = "";
@@ -33,6 +31,7 @@ export const parserService = {
       for (let i = 1; i <= pdf.numPages; i++) {
         const page = await pdf.getPage(i);
         const textContent = await page.getTextContent();
+        // Join text items with spaces
         const pageText = textContent.items.map((item: any) => item.str).join(" ");
         fullText += pageText + "\n";
       }
@@ -43,11 +42,10 @@ export const parserService = {
   },
 
   parseMCQs(text: string): Partial<Question>[] {
-    // Normalize text: remove line breaks that split sentences unnecessarily
+    // Normalize text: clean up spaces and standard line breaks
     text = text.replace(/\r/g, "").replace(/\n\s*\n/g, "\n");
 
-    // Split questions by standard numbering (1. 2. 3.) at start of lines or preceded by newline
-    // This regex looks for a digit followed by a dot at the start of a logical block
+    // Split questions by standard legal numbering (1. 2. 3.)
     const blocks = text.split(/\n?(?=\d+\.\s+)/).filter(Boolean);
 
     const questions: Partial<Question>[] = [];
@@ -60,18 +58,16 @@ export const parserService = {
 
       if (lines.length < 3) continue;
 
-      // Extract question (strip the 1. part)
-      const questionTitle = lines[0].replace(/^\d+\.\s+/, "");
+      // Extract question (strip the "1. " part)
+      const questionText = lines[0].replace(/^\d+\.\s+/, "");
 
-      // Find options: A. B. C. D.
+      // Identify options A. B. C. D.
       const optionLines = lines.filter(l => /^[A-D]\.\s+/.test(l));
-      
-      // If we don't find enough options in the lines, the block might be formatted differently
       if (optionLines.length < 2) continue;
 
       const options = optionLines.map(opt => opt.replace(/^[A-D]\.\s+/, ""));
 
-      // Correct Answer line check (e.g. Correct Answer: A) )
+      // Check for an explicit "Correct Answer" line in the text
       const answerLine = lines.find(l => l.toLowerCase().includes("correct answer"));
       let correctIndex: number | undefined = undefined;
 
@@ -82,16 +78,17 @@ export const parserService = {
         }
       }
 
-      // Explanation extraction
+      // Check for an explicit "Explanation" line
       const explanationLine = lines.find(l => l.toLowerCase().startsWith("explanation:"));
       const explanation = explanationLine
         ? explanationLine.replace(/^explanation:\s*/i, "").trim()
         : "";
 
       questions.push({
-        text: questionTitle,
+        text: questionText,
         options: options.slice(0, 4),
-        correctAnswer: correctIndex ?? -1, // -1 means we need AI to solve it
+        // Use -1 to trigger Smart Analysis (Gemini) later if no answer found
+        correctAnswer: (correctIndex !== undefined) ? correctIndex : -1,
         explanation: explanation
       });
     }
