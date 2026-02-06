@@ -1,7 +1,8 @@
+
 import { Notification, SubCategory, Quiz, StudyNote, QuizFeedback } from '../types';
 
-// Absolute URL to ensure consistency
-const API_BASE_URL = 'https://www.mmtestpreparation.com/api.php'; 
+// Use relative path so it works regardless of the domain name it's hosted on
+const API_BASE_URL = './api.php'; 
 
 export const dataService = {
   async request(endpoint: string, method: string = 'GET', body?: any) {
@@ -26,7 +27,7 @@ export const dataService = {
         data = JSON.parse(text);
       } catch (e) {
         console.error("Non-JSON Server Response:", text);
-        throw new Error("Institutional Error: Invalid response format from academic server.");
+        throw new Error("Institutional Error: Invalid response format from academic server. Ensure api.php is present and PHP is active.");
       }
 
       if (!response.ok) {

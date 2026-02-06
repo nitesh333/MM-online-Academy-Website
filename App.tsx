@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import Navbar from './components/Navbar';
 import QuizModule from './components/QuizModule';
@@ -32,14 +33,15 @@ import {
   Quote,
   Instagram,
   Linkedin,
-  Music,
+  Music as TiktokIcon,
   Lock,
   User,
   ShieldAlert,
   Loader2,
   MessageCircle,
   Hash,
-  MapPin
+  MapPin,
+  ExternalLink
 } from 'lucide-react';
 
 const AdminLogin: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
@@ -251,6 +253,13 @@ const App: React.FC = () => {
     window.location.href = `${window.location.protocol}//${mainDomain}`;
   };
 
+  const socialLinks = [
+    { label: 'TikTok', icon: TiktokIcon, url: 'https://www.tiktok.com/@majid.maqsood8', color: 'hover:text-pink-500' },
+    { label: 'Instagram', icon: Instagram, url: 'https://www.instagram.com/majid.maqsood01/?hl=en', color: 'hover:text-purple-500' },
+    { label: 'LinkedIn', icon: Linkedin, url: 'https://www.linkedin.com/in/majid-maqsood-633444374/', color: 'hover:text-blue-600' },
+    { label: 'Facebook', icon: Facebook, url: 'https://www.facebook.com/MirpurkhasAliTalpurTown/', color: 'hover:text-blue-500' }
+  ];
+
   return (
     <div className="min-h-screen flex flex-col bg-zinc-50 dark:bg-pakgreen-deepest text-zinc-900 dark:text-zinc-100 transition-colors islamic-pattern">
       <Navbar onNavigate={handleNavigate} />
@@ -429,10 +438,30 @@ const App: React.FC = () => {
                     <div><span className="block text-xs font-black uppercase text-zinc-400">Official Email</span><span className="text-xl font-black text-pakgreen dark:text-white uppercase">mmonlineacademy26@gmail.com</span></div>
                   </div>
                 </div>
+
+                <div className="mt-16">
+                  <h3 className="text-xl font-black text-pakgreen dark:text-white uppercase mb-8 border-l-4 border-gold-light pl-4">Digital Presence</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    {socialLinks.map((social) => (
+                      <a 
+                        key={social.label} 
+                        href={social.url} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-3 p-4 bg-white dark:bg-pakgreen-dark/40 border border-gold/10 rounded-2xl hover:border-gold-light transition-all group"
+                      >
+                        <social.icon className={`h-5 w-5 text-gold-light transition-colors ${social.color}`} />
+                        <span className="text-[10px] font-black uppercase text-zinc-600 dark:text-zinc-300">{social.label}</span>
+                        <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-40 ml-auto" />
+                      </a>
+                    ))}
+                  </div>
+                </div>
               </div>
-              <div className="bg-white dark:bg-pakgreen-dark p-12 rounded-[40px] shadow-2xl border border-gold/10">
+              <div className="bg-white dark:bg-pakgreen-dark p-12 rounded-[40px] shadow-2xl border border-gold/10 flex flex-col justify-center">
                 <h3 className="text-2xl font-black text-pakgreen dark:text-white uppercase mb-8">Connect Instantly</h3>
-                <a href="https://wa.me/923182990927" target="_blank" className="bg-[#25D366] text-white w-full py-6 rounded-2xl font-black uppercase tracking-widest flex items-center justify-center gap-4 hover:scale-105 transition-all">
+                <p className="text-zinc-500 text-xs mb-8 font-medium leading-relaxed">Our support team is available 24/7 to assist you with your academic registration and preparation queries.</p>
+                <a href="https://wa.me/923182990927" target="_blank" className="bg-[#25D366] text-white w-full py-6 rounded-2xl font-black uppercase tracking-widest flex items-center justify-center gap-4 hover:scale-105 transition-all shadow-xl shadow-green-500/20">
                   <MessageCircle className="h-6 w-6" /> WhatsApp Support
                 </a>
               </div>
@@ -502,9 +531,16 @@ const App: React.FC = () => {
                   <BookOpen className="h-10 w-10 text-pakgreen dark:text-gold-light" />
                   <span className="text-2xl font-black uppercase text-pakgreen dark:text-gold-light tracking-tighter">MM Online Academy</span>
                </div>
-               <p className="text-zinc-500 max-w-sm uppercase font-black text-[10px] tracking-widest leading-relaxed">
+               <p className="text-zinc-500 max-w-sm uppercase font-black text-[10px] tracking-widest leading-relaxed mb-8">
                   Bridging the gap between institutional ambition and superior academic excellence across the nation.
                </p>
+               <div className="flex items-center gap-4">
+                  {socialLinks.map((social) => (
+                    <a key={social.label} href={social.url} target="_blank" rel="noopener noreferrer" className={`p-2 bg-pakgreen-deepest/5 dark:bg-white/5 rounded-lg text-zinc-500 dark:text-zinc-400 transition-all ${social.color}`}>
+                      <social.icon className="h-5 w-5" />
+                    </a>
+                  ))}
+               </div>
             </div>
             <div>
                <h4 className="font-black uppercase text-sm mb-6 text-pakgreen dark:text-gold-light tracking-widest">Quick Tracks</h4>
@@ -517,14 +553,14 @@ const App: React.FC = () => {
             <div>
                <h4 className="font-black uppercase text-sm mb-6 text-pakgreen dark:text-gold-light tracking-widest">Contact</h4>
                <ul className="space-y-4 text-xs font-bold text-zinc-400 uppercase">
-                  <li>+92 318 2990927</li>
-                  <li className="break-all">mmonlineacademy26@gmail.com</li>
+                  <li className="flex items-center gap-2"><Phone className="h-3 w-3 text-gold-light" /> +92 318 2990927</li>
+                  <li className="break-all flex items-center gap-2"><Mail className="h-3 w-3 text-gold-light" /> mmonlineacademy26@gmail.com</li>
                </ul>
             </div>
          </div>
          <div className="max-w-7xl mx-auto px-6 text-center border-t border-gold/10 pt-12">
             <p className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.4em]">
-              All Rights reserved 2026 Designed and Developed by <a href="https://marketingclub.com.pk/" target="_blank" rel="noopener noreferrer" className="text-gold-light hover:underline">Marketing club</a>
+              All Rights Reserved 2026 Designed and Developed by <a href="https://marketingclub.com.pk/" target="_blank" rel="noopener noreferrer" className="text-gold-light hover:underline">Marketing club</a>
             </p>
          </div>
       </footer>

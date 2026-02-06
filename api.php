@@ -1,3 +1,4 @@
+
 <?php
 /**
  * Professional Academy Backend API - Plain-Text Auth v6
@@ -26,11 +27,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 $MASTER_U = 'mmonlineacademy26@gmail.com';
 $MASTER_P = 'mmacademy';
 
-// 4. DB CONFIG
+// 4. DB CONFIG - UPDATE THESE TO MATCH YOUR ACTUAL HOSTING CREDENTIALS
 $host = "localhost";
-$db_name = "mmtestpr_mmtestprep"; 
-$username = "mmtestpr_nitesh";     
-$password = "mmtestprep123";      
+$db_name = "mmtestpr_mmtestprep"; // The database name created in your hosting panel
+$username = "mmtestpr_nitesh";     // The database user assigned to that DB
+$password = "mmtestprep123";      // The password for that database user
 
 // 5. UNIVERSAL INPUT PARSING
 $inputRaw = file_get_contents('php://input');
