@@ -1,100 +1,87 @@
 import * as mammoth from 'mammoth';
 import { Question } from '../types';
+import * as pdfjsLib from 'pdfjs-dist';
+
+// Set worker source for pdfjs
+pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
 
 /**
  * Institutional MCQ Parser Service
- * Extracts text from PDF/DOCX and converts to structured Quiz data.
+ * Extracts text from PDF/DOCX and prepares it for AI processing.
  */
-
 export const parserService = {
   async extractTextFromFile(file: File): Promise<string> {
     const arrayBuffer = await file.arrayBuffer();
     
     // 1. Handle DOCX
     if (file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") {
-      const result = await mammoth.extractRawText({ arrayBuffer });
-      return result.value;
+      try {
+        const result = await mammoth.extractRawText({ arrayBuffer });
+        return result.value;
+      } catch (err) {
+        console.error("Mammoth error:", err);
+        throw new Error("Failed to read Word document.");
+      }
     }
 
     // 2. Handle PDF
     if (file.type === "application/pdf") {
-      // @ts-ignore - pdfjsLib is loaded from CDN in index.html
-      const pdfjsLib = window['pdfjs-dist/build/pdf'];
-      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://esm.sh/pdfjs-dist@4.0.379/build/pdf.worker.mjs';
-      
-      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-      let fullText = "";
-      
-      for (let i = 1; i <= pdf.numPages; i++) {
-        const page = await pdf.getPage(i);
-        const textContent = await page.getTextContent();
-        const pageText = textContent.items.map((item: any) => item.str).join(" ");
-        fullText += pageText + "\n";
+      try {
+        const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+        const pdf = await loadingTask.promise;
+        let fullText = "";
+        
+        for (let i = 1; i <= pdf.numPages; i++) {
+          const page = await pdf.getPage(i);
+          const textContent = await page.getTextContent();
+          const pageText = textContent.items
+            .map((item: any) => item.str || "")
+            .join(" ");
+          fullText += pageText + "\n";
+        }
+        return fullText;
+      } catch (err) {
+        console.error("PDF.js error:", err);
+        throw new Error("Failed to read PDF. Make sure it's not password protected.");
       }
-      return fullText;
     }
 
     throw new Error("Unsupported file format. Please upload PDF or DOCX.");
   },
 
+  /**
+   * Legacy regex-based parser (used as fallback or for immediate feedback)
+   */
   parseMCQs(text: string): Partial<Question>[] {
-    text = text.replace(/\r/g, "");
-
-    // Split questions by number (1., 2., 3.)
-    const blocks = text.split(/\n?\d+\.\s+/).filter(Boolean);
-
+    const cleanText = text.replace(/\r/g, "");
+    const blocks = cleanText.split(/\n?\d+[\.\)]\s+/).filter(Boolean);
     const questions: Partial<Question>[] = [];
 
     for (const block of blocks) {
-      const lines = block
-        .split("\n")
-        .map(l => l.trim())
-        .filter(Boolean);
+      const lines = block.split("\n").map(l => l.trim()).filter(Boolean);
+      if (lines.length < 3) continue;
 
-      // Question text usually starts at the beginning of the block
-      if (lines.length < 5) continue;
-
-      const questionTitle = lines[0];
-
-      // Options: A. B. C. D.
-      const optionLines = lines.filter(l =>
-        /^[A-D]\.\s+/.test(l)
-      );
-
-      // Require at least some options to proceed
+      const questionText = lines[0];
+      const optionLines = lines.filter(l => /^[A-D][\.\)]\s+/.test(l));
+      
       if (optionLines.length < 2) continue;
 
-      const options = optionLines.map(opt =>
-        opt.replace(/^[A-D]\.\s+/, "")
-      );
-
-      // Correct Answer line check
-      const answerLine = lines.find(l =>
-        l.includes("Correct Answer")
-      );
-
+      const options = optionLines.map(opt => opt.replace(/^[A-D][\.\)]\s+/, ""));
+      const answerLine = lines.find(l => l.toLowerCase().includes("correct answer"));
+      
       let correctIndex = 0;
       if (answerLine) {
-        // Extract correct option letter followed by ) like A)
-        const match = answerLine.match(/[A-D]\)/);
+        const match = answerLine.match(/[A-D]/i);
         if (match) {
-          correctIndex = match[0][0].toUpperCase().charCodeAt(0) - 65;
+          correctIndex = match[0].toUpperCase().charCodeAt(0) - 65;
         }
       }
 
-      // Explanation extraction
-      const explanationLine = lines.find(l =>
-        l.startsWith("Explanation:")
-      );
-      const explanation = explanationLine
-        ? explanationLine.replace("Explanation:", "").trim()
-        : "";
-
       questions.push({
-        text: questionTitle,
+        text: questionText,
         options: options.slice(0, 4),
         correctAnswer: correctIndex,
-        explanation: explanation
+        explanation: ""
       });
     }
 

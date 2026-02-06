@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Trash2, Loader2, Database, Activity, RefreshCw, FileUp, FileText, CheckCircle2, AlertCircle, ChevronRight, UploadCloud } from 'lucide-react';
+import { Trash2, Loader2, Database, Activity, RefreshCw, FileUp, FileText, CheckCircle2, AlertCircle, ChevronRight, UploadCloud, Sparkles } from 'lucide-react';
 import { Notification, SubCategory, Quiz, Question } from '../types';
 import { dataService } from '../services/dataService';
 import { parserService } from '../services/parserService';
+import { parseQuizFromText } from '../services/geminiService';
 
 const AdminInput = ({ className, ...props }: React.InputHTMLAttributes<HTMLInputElement>) => (
   <input 
@@ -44,6 +45,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
 
   // Parsing State
   const [isParsing, setIsParsing] = useState(false);
+  const [parsingStep, setParsingStep] = useState<string>('');
   const [parsedQuestions, setParsedQuestions] = useState<Partial<Question>[]>([]);
   const [parseError, setParseError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -98,30 +100,45 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     setIsParsing(true);
     setParseError(null);
     setParsedQuestions([]);
+    setParsingStep('Extracting text...');
 
     try {
       const text = await parserService.extractTextFromFile(file);
-      const results = parserService.parseMCQs(text);
+      setParsingStep('AI Processing with Gemini...');
       
-      if (results.length === 0) {
-        setParseError("No valid MCQs detected. Ensure formatting: 1. Question... A. Option... Correct Answer: A) Explanation: ...");
+      const aiResults = await parseQuizFromText(text);
+      
+      if (aiResults.length === 0) {
+        setParsingStep('AI failed. Using fallback parser...');
+        const fallbackResults = parserService.parseMCQs(text);
+        if (fallbackResults.length === 0) {
+          throw new Error("No MCQs could be identified in this document.");
+        }
+        setParsedQuestions(fallbackResults);
+        populateForm(fallbackResults);
       } else {
-        setParsedQuestions(results);
-        setManualQuizForm(prev => ({ 
-          ...prev, 
-          questions: results.map(q => ({
-            text: q.text || '',
-            options: q.options || ['', '', '', ''],
-            correctAnswer: q.correctAnswer || 0,
-            explanation: q.explanation || ''
-          }))
-        }));
+        setParsedQuestions(aiResults);
+        populateForm(aiResults);
       }
     } catch (err: any) {
       setParseError(err.message || "Failed to process document.");
     } finally {
       setIsParsing(false);
+      setParsingStep('');
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
+  };
+
+  const populateForm = (qs: Partial<Question>[]) => {
+    setManualQuizForm(prev => ({ 
+      ...prev, 
+      questions: qs.map(q => ({
+        text: q.text || '',
+        options: q.options && q.options.length >= 4 ? q.options.slice(0, 4) : ['', '', '', ''],
+        correctAnswer: q.correctAnswer !== undefined ? q.correctAnswer : 0,
+        explanation: q.explanation || ''
+      }))
+    }));
   };
 
   const handleManualQuizSubmit = async (e: React.FormEvent) => {
@@ -144,7 +161,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       }))
     };
     onAddQuiz(newQuiz);
-    alert(`Institutional Deployment Success: ${newQuiz.title} live on ${manualQuizForm.subCategoryId.toUpperCase()} Track.`);
+    alert(`Institutional Deployment Success: ${newQuiz.title} live.`);
     setManualQuizForm({
       title: '',
       subCategoryId: categories[0]?.id || 'lat',
@@ -222,8 +239,11 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
 
         {activeTab === 'quizzes' && (
           <div className="space-y-10">
-            {/* 1. DOCUMENT UPLOAD ENGINE */}
-            <div className="bg-slate-800/40 border-2 border-dashed border-slate-700 rounded-3xl p-10 text-center hover:border-blue-500/50 transition-all group">
+            {/* SMART UPLOAD ENGINE */}
+            <div className="bg-slate-800/40 border-2 border-dashed border-slate-700 rounded-3xl p-10 text-center hover:border-blue-500/50 transition-all group relative overflow-hidden">
+              <div className="absolute top-0 right-0 p-4">
+                <Sparkles className="h-6 w-6 text-gold animate-pulse" />
+              </div>
               <input 
                 type="file" 
                 ref={fileInputRef} 
@@ -232,15 +252,19 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                 accept=".pdf,.docx" 
               />
               <UploadCloud className="h-12 w-12 text-slate-600 mx-auto mb-4 group-hover:text-blue-500 transition-colors" />
-              <h3 className="text-white font-black text-lg uppercase tracking-tight mb-2">Quiz Upload Engine</h3>
-              <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest mb-6">Standard Format: 1. Question... A. Option... Correct Answer: A) Explanation: ...</p>
+              <h3 className="text-white font-black text-lg uppercase tracking-tight mb-2">AI Quiz Engine</h3>
+              <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest mb-6">Gemini-Powered Extraction from PDF/DOCX</p>
               
               <button 
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isParsing}
-                className="bg-blue-600/10 text-blue-400 border border-blue-500/30 px-8 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-blue-600 hover:text-white transition-all disabled:opacity-50"
+                className="bg-blue-600/10 text-blue-400 border border-blue-500/30 px-8 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-blue-600 hover:text-white transition-all disabled:opacity-50 min-w-[200px]"
               >
-                {isParsing ? <span className="flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Analyzing Document...</span> : "Select Document"}
+                {isParsing ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" /> {parsingStep}
+                  </span>
+                ) : "Smart Upload"}
               </button>
 
               {parseError && (
@@ -251,20 +275,19 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
 
               {parsedQuestions.length > 0 && (
                 <div className="mt-6 p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-emerald-400 text-[10px] font-black uppercase flex items-center justify-center gap-2 animate-in zoom-in-95">
-                  <CheckCircle2 className="h-4 w-4" /> {parsedQuestions.length} Questions Extracted & Ready for Review
+                  <CheckCircle2 className="h-4 w-4" /> {parsedQuestions.length} Questions Extracted by Gemini
                 </div>
               )}
             </div>
 
-            {/* 2. QUIZ DEPLOYMENT FORM */}
             <form onSubmit={handleManualQuizSubmit} className="bg-slate-800/30 p-8 rounded-2xl border border-slate-700 space-y-8">
                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
                     <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-1">Assessment Title</label>
-                    <AdminInput value={manualQuizForm.title} onChange={e => setManualQuizForm({...manualQuizForm, title: e.target.value})} placeholder="e.g. Constitutional Law Mock V1" required />
+                    <AdminInput value={manualQuizForm.title} onChange={e => setManualQuizForm({...manualQuizForm, title: e.target.value})} placeholder="e.g. Constitutional Law Mock" required />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-1">Target Track</label>
+                    <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-1">Track Assignment</label>
                     <AdminSelect value={manualQuizForm.subCategoryId} onChange={e => setManualQuizForm({...manualQuizForm, subCategoryId: e.target.value})}>
                         {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </AdminSelect>
@@ -275,7 +298,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                   {manualQuizForm.questions.map((q, idx) => (
                     <div key={idx} className="p-6 bg-slate-900/50 rounded-2xl border border-slate-800 space-y-4 shadow-inner">
                         <div className="flex justify-between items-center mb-2">
-                            <span className="text-[9px] font-black text-blue-400 uppercase tracking-widest">Question Block #{idx + 1}</span>
+                            <span className="text-[9px] font-black text-blue-400 uppercase tracking-widest">Item #{idx + 1}</span>
                             <button 
                                 type="button"
                                 onClick={() => {
@@ -291,7 +314,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                           const nq = [...manualQuizForm.questions];
                           nq[idx].text = e.target.value;
                           setManualQuizForm({...manualQuizForm, questions: nq});
-                        }} placeholder={`Question Statement`} />
+                        }} placeholder={`Question Text`} />
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                            {q.options.map((o, oidx) => (
                              <div key={oidx} className="relative">
@@ -314,20 +337,11 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                              </div>
                            ))}
                         </div>
-                        <div className="space-y-2">
-                           <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-1">Explanation</label>
-                           <textarea 
-                              value={q.explanation} 
-                              onChange={e => {
-                                 const nq = [...manualQuizForm.questions];
-                                 nq[idx].explanation = e.target.value;
-                                 setManualQuizForm({...manualQuizForm, questions: nq});
-                              }}
-                              className="w-full p-3 bg-slate-800 text-white rounded text-sm border border-slate-700"
-                              rows={2}
-                              placeholder="Why is this answer correct?"
-                           />
-                        </div>
+                        <AdminInput value={q.explanation} onChange={e => {
+                           const nq = [...manualQuizForm.questions];
+                           nq[idx].explanation = e.target.value;
+                           setManualQuizForm({...manualQuizForm, questions: nq});
+                        }} placeholder="Explanation (Optional)" />
                     </div>
                   ))}
                </div>
@@ -339,33 +353,18 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                             ...manualQuizForm, 
                             questions: [...manualQuizForm.questions, { text: '', options: ['', '', '', ''], correctAnswer: 0, explanation: '' }]
                         })}
-                        className="flex-grow bg-slate-800 text-slate-300 py-4 rounded-xl font-black uppercase text-[10px] tracking-widest border border-slate-700 hover:bg-slate-700 transition-all"
+                        className="flex-grow bg-slate-800 text-slate-300 py-4 rounded-xl font-black uppercase text-[10px] tracking-widest border border-slate-700 hover:bg-slate-700"
                     >
-                        Add Manual Question
+                        New Question
                     </button>
                     <button 
                         type="submit" 
-                        className="flex-[2] bg-blue-600 text-white py-4 rounded-xl font-black uppercase text-[10px] tracking-[0.2em] shadow-2xl hover:bg-blue-500 transition-all"
+                        className="flex-[2] bg-blue-600 text-white py-4 rounded-xl font-black uppercase text-[10px] tracking-[0.2em] shadow-2xl hover:bg-blue-500"
                     >
-                        Deploy Institutional Assessment
+                        Deploy Assessment
                     </button>
                </div>
             </form>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-               {quizzes.map(q => (
-                 <div key={q.id} className="p-4 bg-slate-800/20 border border-slate-800 rounded-xl flex justify-between items-center group">
-                    <div className="flex items-center gap-3">
-                        <FileText className="h-4 w-4 text-slate-500 group-hover:text-blue-400 transition-colors" />
-                        <div>
-                            <span className="text-white font-bold text-xs uppercase">{q.title}</span>
-                            <p className="text-[8px] text-slate-600 font-black uppercase tracking-widest">{q.subCategoryId} • {q.questions.length} Questions</p>
-                        </div>
-                    </div>
-                    <button onClick={() => onDeleteQuiz(q.id)} className="text-slate-600 hover:text-red-500 transition-colors"><Trash2 className="h-4 w-4" /></button>
-                 </div>
-               ))}
-            </div>
           </div>
         )}
 
@@ -377,7 +376,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                <p className="text-slate-500 text-xs font-bold uppercase tracking-[0.4em] mb-10">System Status: <span className="text-emerald-400">{dbStatus}</span></p>
                <div className="max-w-md mx-auto space-y-4">
                  <button onClick={handleRepair} disabled={isRepairing} className="w-full bg-slate-700 hover:bg-slate-600 text-white px-10 py-5 rounded-2xl font-black uppercase text-[10px] tracking-[0.2em] transition-all flex items-center justify-center gap-4 border border-slate-600 shadow-xl">
-                    {isRepairing ? <Loader2 className="h-5 w-5 animate-spin" /> : <Database className="h-5 w-5" />} Repair Institutional Schema
+                    {isRepairing ? <Loader2 className="h-5 w-5 animate-spin" /> : <Database className="h-5 w-5" />} Repair Schema
                  </button>
                  <button onClick={checkHealth} className="w-full bg-slate-800 hover:bg-slate-700 text-slate-300 px-10 py-5 rounded-2xl font-black uppercase text-[10px] tracking-[0.2em] transition-all flex items-center justify-center gap-4 border border-slate-700 shadow-xl">
                     <RefreshCw className="h-5 w-5" /> Refresh Connection
