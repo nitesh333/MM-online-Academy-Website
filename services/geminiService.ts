@@ -1,27 +1,28 @@
+
 import { GoogleGenAI, Type } from "@google/genai";
 import { Question } from "../types";
-
-const API_KEY = process.env.API_KEY || "";
 
 /**
  * Gemini-powered MCQ extraction service.
  * Converts raw text from documents into structured quiz objects.
  */
 export const parseQuizFromText = async (rawText: string): Promise<Partial<Question>[]> => {
-  if (!API_KEY) {
-    console.warn("Gemini API Key missing. Skipping AI refinement.");
+  if (!process.env.API_KEY) {
+    console.warn("Gemini API Key missing in environment.");
     return [];
   }
 
   try {
-    const ai = new GoogleGenAI({ apiKey: API_KEY });
+    // Always initialize with the direct environment variable as per guidelines
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
       contents: `Extract all MCQs from the following text and format them as a JSON array of objects. 
       Each object must have: 'text', 'options' (array of 4 strings), 'correctAnswer' (0-3 integer index), and 'explanation'.
       
       Text to parse:
-      ${rawText.substring(0, 15000)}`, // Limit context window
+      ${rawText.substring(0, 15000)}`, // Limit context window for performance
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -47,7 +48,11 @@ export const parseQuizFromText = async (rawText: string): Promise<Partial<Questi
       }
     });
 
-    const result = JSON.parse(response.text || "[]");
+    // Access the .text property directly as per guidelines
+    const textOutput = response.text;
+    if (!textOutput) return [];
+
+    const result = JSON.parse(textOutput.trim());
     return Array.isArray(result) ? result : [];
   } catch (error) {
     console.error("Gemini Parsing Error:", error);
