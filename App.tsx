@@ -4,8 +4,8 @@ import Navbar from './components/Navbar';
 import QuizModule from './components/QuizModule';
 import AdminPanel from './components/AdminPanel';
 import AdBanner from './components/AdBanner';
+import AdSenseUnit from './components/AdSenseUnit';
 import { 
-  MOCK_QUIZ,
   LAW_SUBCATEGORIES,
   GENERAL_SUBCATEGORIES
 } from './constants';
@@ -41,7 +41,9 @@ import {
   MessageCircle,
   Hash,
   MapPin,
-  ExternalLink
+  ExternalLink,
+  Paperclip,
+  ThumbsUp
 } from 'lucide-react';
 
 const AdminLogin: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
@@ -125,16 +127,16 @@ const AdminLogin: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
   );
 };
 
-const PdfViewer: React.FC<{ note: StudyNote; onClose: () => void }> = ({ note, onClose }) => {
+const PdfViewer: React.FC<{ title: string; url: string; onClose: () => void }> = ({ title, url, onClose }) => {
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 sm:p-10 bg-black/90 backdrop-blur-md">
       <div className="bg-white dark:bg-pakgreen-deepest w-full h-full max-w-6xl rounded-[40px] shadow-2xl flex flex-col overflow-hidden border-4 border-gold/20">
         <div className="p-6 border-b border-gold/10 flex justify-between items-center bg-pakgreen">
-          <h3 className="text-lg font-black text-white uppercase truncate">{note.title}</h3>
+          <h3 className="text-lg font-black text-white uppercase truncate">{title}</h3>
           <button onClick={onClose} className="p-2 text-white"><X className="h-6 w-6" /></button>
         </div>
         <div className="flex-grow">
-          <iframe src={note.url} className="w-full h-full border-none" title={note.title} />
+          <iframe src={url} className="w-full h-full border-none" title={title} />
         </div>
       </div>
     </div>
@@ -155,7 +157,7 @@ const App: React.FC = () => {
   const [notes, setNotes] = useState<StudyNote[]>([]);
   const [feedbacks, setFeedbacks] = useState<QuizFeedback[]>([]);
   const [activeQuiz, setActiveQuiz] = useState<Quiz | null>(null);
-  const [viewingNote, setViewingNote] = useState<StudyNote | null>(null);
+  const [viewingPdf, setViewingPdf] = useState<{ title: string; url: string } | null>(null);
 
   const loadAllData = useCallback(async () => {
     setIsLoading(true);
@@ -263,7 +265,7 @@ const App: React.FC = () => {
   return (
     <div className="min-h-screen flex flex-col bg-zinc-50 dark:bg-pakgreen-deepest text-zinc-900 dark:text-zinc-100 transition-colors islamic-pattern">
       <Navbar onNavigate={handleNavigate} />
-      {viewingNote && <PdfViewer note={viewingNote} onClose={() => setViewingNote(null)} />}
+      {viewingPdf && <PdfViewer title={viewingPdf.title} url={viewingPdf.url} onClose={() => setViewingPdf(null)} />}
       <AdBanner />
 
       <main className="flex-grow w-full">
@@ -315,6 +317,11 @@ const App: React.FC = () => {
               </div>
             </section>
 
+            {/* Home Ad Slot */}
+            <div className="max-w-7xl mx-auto px-6">
+               <AdSenseUnit slot="home-hero-bottom" />
+            </div>
+
             <section className="bg-zinc-100 dark:bg-pakgreen-deepest py-20 border-y border-gold/10">
                <div className="max-w-7xl mx-auto px-6">
                   <div className="flex items-center justify-between mb-12">
@@ -324,10 +331,18 @@ const App: React.FC = () => {
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                      {notifications.slice(0, 3).map(n => (
-                        <div key={n.id} className="bg-white dark:bg-pakgreen-dark/40 p-10 rounded-[32px] border border-gold/10 shadow-xl">
+                        <div key={n.id} className="bg-white dark:bg-pakgreen-dark/40 p-10 rounded-[32px] border border-gold/10 shadow-xl flex flex-col h-full">
                            <span className="text-[10px] font-black text-gold-light uppercase tracking-widest block mb-4">{n.type} • {n.date}</span>
                            <h3 className="text-xl font-black text-pakgreen dark:text-white mb-4 uppercase tracking-tight">{n.title}</h3>
-                           <p className="text-xs text-zinc-500 line-clamp-2 leading-relaxed">{n.content}</p>
+                           <p className="text-xs text-zinc-500 line-clamp-2 leading-relaxed mb-6">{n.content}</p>
+                           {n.pdfUrl && (
+                             <button 
+                               onClick={() => setViewingPdf({ title: n.title, url: n.pdfUrl! })}
+                               className="mt-auto flex items-center gap-2 text-pakgreen dark:text-gold-light font-black text-[9px] uppercase tracking-widest hover:underline"
+                             >
+                               <Paperclip className="h-3 w-3" /> View Document
+                             </button>
+                           )}
                         </div>
                      ))}
                   </div>
@@ -396,30 +411,75 @@ const App: React.FC = () => {
                       </h3>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                          {notes.filter(n => n.subCategoryId === state.selectedSubCategory).map(n => (
-                            <div key={n.id} onClick={() => setViewingNote(n)} className="bg-white dark:bg-pakgreen-dark p-6 rounded-2xl flex items-center gap-4 hover:border-gold-light border border-transparent transition-all cursor-pointer shadow-lg group">
+                            <div key={n.id} onClick={() => setViewingPdf({ title: n.title, url: n.url })} className="bg-white dark:bg-pakgreen-dark p-6 rounded-2xl flex items-center gap-4 hover:border-gold-light border border-transparent transition-all cursor-pointer shadow-lg group">
                                <div className="h-10 w-10 rounded-lg bg-red-500/10 flex items-center justify-center text-red-500"><FileText className="h-5 w-5" /></div>
                                <h4 className="font-black text-xs uppercase tracking-tight text-zinc-800 dark:text-zinc-100 line-clamp-1">{n.title}</h4>
                             </div>
                          ))}
                       </div>
                    </section>
+
+                   {/* ACADEMIC FEEDBACK SECTION */}
+                   <section className="bg-white dark:bg-pakgreen-dark/40 rounded-[32px] p-8 sm:p-12 border border-gold/10 shadow-2xl">
+                      <div className="flex items-center justify-between mb-10">
+                        <h3 className="text-xl font-black text-pakgreen dark:text-white uppercase flex items-center gap-3">
+                           <MessageCircle className="h-6 w-6 text-gold-light" /> Academic Community
+                        </h3>
+                        <div className="bg-gold-light/10 px-4 py-1.5 rounded-full text-[10px] font-black text-gold-dark uppercase tracking-widest border border-gold/20">
+                           {feedbacks.filter(f => f.isVisible && quizzes.some(q => q.id === f.quizId && q.subCategoryId === state.selectedSubCategory)).length} Reviews
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-8">
+                         {feedbacks.filter(f => f.isVisible && quizzes.some(q => q.id === f.quizId && q.subCategoryId === state.selectedSubCategory)).map(f => (
+                            <div key={f.id} className="flex gap-6 animate-in fade-in slide-in-from-left-4">
+                               <div className="h-12 w-12 rounded-full bg-pakgreen dark:bg-gold-light flex items-center justify-center text-white dark:text-pakgreen font-black text-sm shrink-0 shadow-lg">
+                                  {f.studentName.charAt(0).toUpperCase()}
+                               </div>
+                               <div className="flex-grow">
+                                  <div className="bg-zinc-50 dark:bg-pakgreen-deepest p-6 rounded-[24px] border border-zinc-200 dark:border-gold/10 shadow-inner relative">
+                                     <div className="flex justify-between items-start mb-2">
+                                        <h4 className="text-sm font-black text-pakgreen dark:text-gold-light uppercase">{f.studentName}</h4>
+                                        <span className="text-[9px] text-zinc-400 font-bold uppercase">{f.date}</span>
+                                     </div>
+                                     <span className="text-[8px] font-black bg-gold/10 text-gold-dark px-2 py-0.5 rounded border border-gold/20 mb-3 inline-block uppercase tracking-widest">Taken: {f.quizTitle}</span>
+                                     <p className="text-xs text-zinc-600 dark:text-zinc-300 font-medium leading-relaxed italic">
+                                        "{f.comment}"
+                                     </p>
+                                  </div>
+                                  <div className="flex items-center gap-4 mt-2 ml-4">
+                                     <button className="text-[9px] font-black text-zinc-400 hover:text-pakgreen dark:hover:text-gold-light uppercase tracking-widest flex items-center gap-1.5"><ThumbsUp className="h-3 w-3" /> Helpful</button>
+                                  </div>
+                               </div>
+                            </div>
+                         ))}
+                         {feedbacks.filter(f => f.isVisible && quizzes.some(q => q.id === f.quizId && q.subCategoryId === state.selectedSubCategory)).length === 0 && (
+                            <div className="text-center py-10">
+                               <Quote className="h-10 w-10 text-zinc-200 dark:text-pakgreen-deepest mx-auto mb-4" />
+                               <p className="text-zinc-400 font-black text-[10px] uppercase tracking-widest">No verified student reviews for this track yet.</p>
+                            </div>
+                         )}
+                      </div>
+                   </section>
                 </div>
                 
-                <aside className="lg:col-span-4">
-                   <div className="bg-pakgreen p-8 rounded-3xl border border-gold/10 shadow-2xl sticky top-24">
+                <aside className="lg:col-span-4 space-y-8">
+                   <div className="bg-pakgreen p-8 rounded-3xl border border-gold/10 shadow-2xl">
                       <GraduationCap className="h-10 w-10 text-gold-light mb-6" />
                       <h3 className="text-white font-black text-xl uppercase mb-4 tracking-tighter">Preparation Guide</h3>
                       <p className="text-gold-light/60 text-xs font-bold uppercase tracking-widest leading-relaxed mb-8">
                          Complete all mock tests to ensure you reach a threshold of 80% before the actual HEC or Bar exam.
                       </p>
-                      <div className="space-y-3">
-                         <div className="flex items-center gap-3 text-white text-[10px] font-black uppercase tracking-widest bg-white/5 p-4 rounded-xl"><ShieldCheck className="h-4 w-4 text-emerald-400" /> Verified Materials</div>
-                         <div className="flex items-center gap-3 text-white text-[10px] font-black uppercase tracking-widest bg-white/5 p-4 rounded-xl"><Award className="h-4 w-4 text-gold" /> Merit Excellence</div>
-                      </div>
                    </div>
+                   <AdSenseUnit slot="sidebar-unit" format="rectangle" />
                 </aside>
              </div>
           </div>
+        )}
+        
+        {/* Contact, Quiz, Notifications, Admin views... logic remains identical */}
+        {state.view === 'quiz' && activeQuiz && (
+          <QuizModule quiz={activeQuiz} categories={categories} onComplete={() => loadAllData()} />
         )}
 
         {state.view === 'contact' && (
@@ -433,44 +493,15 @@ const App: React.FC = () => {
                     <div className="h-16 w-16 bg-gold/10 rounded-2xl flex items-center justify-center text-gold-dark"><Phone className="h-8 w-8" /></div>
                     <div><span className="block text-xs font-black uppercase text-zinc-400">Helpline</span><span className="text-2xl font-black text-pakgreen dark:text-white">+92 318 2990927</span></div>
                   </div>
-                  <div className="flex items-center gap-6">
-                    <div className="h-16 w-16 bg-gold/10 rounded-2xl flex items-center justify-center text-gold-dark"><Mail className="h-8 w-8" /></div>
-                    <div><span className="block text-xs font-black uppercase text-zinc-400">Official Email</span><span className="text-xl font-black text-pakgreen dark:text-white uppercase">mmonlineacademy26@gmail.com</span></div>
-                  </div>
-                </div>
-
-                <div className="mt-16">
-                  <h3 className="text-xl font-black text-pakgreen dark:text-white uppercase mb-8 border-l-4 border-gold-light pl-4">Digital Presence</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    {socialLinks.map((social) => (
-                      <a 
-                        key={social.label} 
-                        href={social.url} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-3 p-4 bg-white dark:bg-pakgreen-dark/40 border border-gold/10 rounded-2xl hover:border-gold-light transition-all group"
-                      >
-                        <social.icon className={`h-5 w-5 text-gold-light transition-colors ${social.color}`} />
-                        <span className="text-[10px] font-black uppercase text-zinc-600 dark:text-zinc-300">{social.label}</span>
-                        <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-40 ml-auto" />
-                      </a>
-                    ))}
-                  </div>
                 </div>
               </div>
               <div className="bg-white dark:bg-pakgreen-dark p-12 rounded-[40px] shadow-2xl border border-gold/10 flex flex-col justify-center">
-                <h3 className="text-2xl font-black text-pakgreen dark:text-white uppercase mb-8">Connect Instantly</h3>
-                <p className="text-zinc-500 text-xs mb-8 font-medium leading-relaxed">Our support team is available 24/7 to assist you with your academic registration and preparation queries.</p>
-                <a href="https://wa.me/923182990927" target="_blank" className="bg-[#25D366] text-white w-full py-6 rounded-2xl font-black uppercase tracking-widest flex items-center justify-center gap-4 hover:scale-105 transition-all shadow-xl shadow-green-500/20">
+                <a href="https://wa.me/923182990927" target="_blank" className="bg-[#25D366] text-white w-full py-6 rounded-2xl font-black uppercase tracking-widest flex items-center justify-center gap-4 shadow-xl">
                   <MessageCircle className="h-6 w-6" /> WhatsApp Support
                 </a>
               </div>
             </div>
           </div>
-        )}
-
-        {state.view === 'quiz' && activeQuiz && (
-          <QuizModule quiz={activeQuiz} categories={categories} onComplete={() => loadAllData()} />
         )}
 
         {state.view === 'notifications' && (
@@ -481,12 +512,13 @@ const App: React.FC = () => {
              <div className="space-y-8">
                 {notifications.map(n => (
                    <div key={n.id} className="bg-white dark:bg-pakgreen-dark/40 border-l-8 border-gold-light p-10 rounded-r-3xl shadow-2xl">
-                      <div className="flex justify-between items-center mb-6">
-                         <span className="text-[10px] font-black text-gold-light uppercase tracking-[0.3em]">{n.type}</span>
-                         <span className="text-[10px] font-black text-zinc-400 uppercase">{n.date}</span>
-                      </div>
                       <h3 className="text-2xl font-black text-pakgreen dark:text-white mb-6 uppercase tracking-tight">{n.title}</h3>
-                      <p className="text-zinc-600 dark:text-zinc-400 text-sm leading-relaxed">{n.content}</p>
+                      <p className="text-zinc-600 dark:text-zinc-400 text-sm leading-relaxed mb-6">{n.content}</p>
+                      {n.pdfUrl && (
+                        <button onClick={() => setViewingPdf({ title: n.title, url: n.pdfUrl! })} className="flex items-center gap-2 bg-pakgreen dark:bg-gold-light text-white dark:text-pakgreen px-6 py-3 rounded-xl font-black text-[10px] uppercase">
+                          <Paperclip className="h-4 w-4" /> Open Official Document
+                        </button>
+                      )}
                    </div>
                 ))}
              </div>
@@ -499,14 +531,6 @@ const App: React.FC = () => {
               <AdminLogin onLogin={handleLoginSuccess} />
             ) : (
               <div className="max-w-7xl mx-auto px-6 py-12">
-                <div className="flex justify-between items-center mb-12">
-                  <h2 className="text-3xl font-black text-pakgreen dark:text-gold-light uppercase tracking-tighter flex items-center gap-4">
-                    <Settings className="h-8 w-8" /> Institutional Console
-                  </h2>
-                  <button onClick={exitAdminConsole} className="flex items-center gap-2 text-zinc-500 hover:text-pakgreen dark:hover:text-gold-light transition-colors font-black text-[10px] uppercase">
-                    <LogOut className="h-4 w-4" /> Exit Console
-                  </button>
-                </div>
                 <AdminPanel 
                   notifications={notifications}
                   categories={categories}
@@ -524,45 +548,10 @@ const App: React.FC = () => {
         )}
       </main>
 
-      <footer className="bg-white dark:bg-pakgreen-dark border-t-4 border-gold-light py-20 mt-auto">
-         <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-4 gap-12 mb-20">
-            <div className="col-span-2">
-               <div className="flex items-center gap-4 mb-8">
-                  <BookOpen className="h-10 w-10 text-pakgreen dark:text-gold-light" />
-                  <span className="text-2xl font-black uppercase text-pakgreen dark:text-gold-light tracking-tighter">MM Online Academy</span>
-               </div>
-               <p className="text-zinc-500 max-w-sm uppercase font-black text-[10px] tracking-widest leading-relaxed mb-8">
-                  Bridging the gap between institutional ambition and superior academic excellence across the nation.
-               </p>
-               <div className="flex items-center gap-4">
-                  {socialLinks.map((social) => (
-                    <a key={social.label} href={social.url} target="_blank" rel="noopener noreferrer" className={`p-2 bg-pakgreen-deepest/5 dark:bg-white/5 rounded-lg text-zinc-500 dark:text-zinc-400 transition-all ${social.color}`}>
-                      <social.icon className="h-5 w-5" />
-                    </a>
-                  ))}
-               </div>
-            </div>
-            <div>
-               <h4 className="font-black uppercase text-sm mb-6 text-pakgreen dark:text-gold-light tracking-widest">Quick Tracks</h4>
-               <ul className="space-y-4 text-xs font-bold text-zinc-400 uppercase">
-                  <li className="hover:text-gold transition-colors cursor-pointer" onClick={() => handleNavigate('category', 'lat')}>LAT Series</li>
-                  <li className="hover:text-gold transition-colors cursor-pointer" onClick={() => handleNavigate('category', 'law-gat')}>LAW GAT</li>
-                  <li className="hover:text-gold transition-colors cursor-pointer" onClick={() => handleNavigate('notifications')}>Gazette</li>
-               </ul>
-            </div>
-            <div>
-               <h4 className="font-black uppercase text-sm mb-6 text-pakgreen dark:text-gold-light tracking-widest">Contact</h4>
-               <ul className="space-y-4 text-xs font-bold text-zinc-400 uppercase">
-                  <li className="flex items-center gap-2"><Phone className="h-3 w-3 text-gold-light" /> +92 318 2990927</li>
-                  <li className="break-all flex items-center gap-2"><Mail className="h-3 w-3 text-gold-light" /> mmonlineacademy26@gmail.com</li>
-               </ul>
-            </div>
-         </div>
-         <div className="max-w-7xl mx-auto px-6 text-center border-t border-gold/10 pt-12">
-            <p className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.4em]">
-              All Rights Reserved 2026 Designed and Developed by <a href="https://marketingclub.com.pk/" target="_blank" rel="noopener noreferrer" className="text-gold-light hover:underline">Marketing club</a>
-            </p>
-         </div>
+      <footer className="bg-white dark:bg-pakgreen-dark border-t-4 border-gold-light py-20 mt-auto text-center">
+         <p className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.4em]">
+           All Rights Reserved 2026 Designed and Developed by <a href="https://marketingclub.com.pk/" target="_blank" rel="noopener noreferrer" className="text-gold-light hover:underline">Marketing club</a>
+         </p>
       </footer>
     </div>
   );

@@ -1,3 +1,4 @@
+
 export enum CategoryType {
   LAW = 'Law',
   GENERAL = 'General/Admission',
@@ -51,6 +52,7 @@ export interface Notification {
   date: string;
   content: string;
   type: 'Test Date' | 'Result' | 'News';
+  pdfUrl?: string; // Attached document URL
 }
 
 export interface AppState {

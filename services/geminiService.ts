@@ -13,16 +13,24 @@ export const parseQuizFromText = async (rawText: string): Promise<Partial<Questi
   }
 
   try {
-    // Always initialize with the direct environment variable as per guidelines
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     
+    // Improved prompt to focus on finding the CORRECT answers specifically
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
-      contents: `Extract all MCQs from the following text and format them as a JSON array of objects. 
-      Each object must have: 'text', 'options' (array of 4 strings), 'correctAnswer' (0-3 integer index), and 'explanation'.
+      contents: `Extract all MCQs from the provided text. 
       
-      Text to parse:
-      ${rawText.substring(0, 15000)}`, // Limit context window for performance
+      IMPORTANT: 
+      1. Look for an answer key at the end of the text or specific markers like "Ans:", "Correct:", or "(*)".
+      2. If an answer is explicitly given in the text, use it. 
+      3. If no answer is given, use your legal/academic knowledge to determine the most accurate answer.
+      4. Each question MUST have 4 options. 
+      5. Provide a brief explanation for the correct answer.
+
+      Output ONLY as a JSON array.
+      
+      TEXT:
+      ${rawText.substring(0, 30000)}`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -34,11 +42,14 @@ export const parseQuizFromText = async (rawText: string): Promise<Partial<Questi
               options: { 
                 type: Type.ARRAY, 
                 items: { type: Type.STRING },
-                description: "List of 4 answer choices"
+                minItems: 4,
+                maxItems: 4
               },
               correctAnswer: { 
                 type: Type.INTEGER, 
-                description: "0-based index of the correct option (0=A, 1=B, 2=C, 3=D)" 
+                description: "Index (0-3) of the correct option",
+                minimum: 0, 
+                maximum: 3 
               },
               explanation: { type: Type.STRING }
             },
@@ -48,11 +59,12 @@ export const parseQuizFromText = async (rawText: string): Promise<Partial<Questi
       }
     });
 
-    // Access the .text property directly as per guidelines
     const textOutput = response.text;
     if (!textOutput) return [];
 
-    const result = JSON.parse(textOutput.trim());
+    const cleanJson = textOutput.replace(/```json/g, "").replace(/```/g, "").trim();
+    const result = JSON.parse(cleanJson);
+    
     return Array.isArray(result) ? result : [];
   } catch (error) {
     console.error("Gemini Parsing Error:", error);

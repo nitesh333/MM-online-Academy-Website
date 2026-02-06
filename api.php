@@ -84,7 +84,7 @@ if ($route === 'initialize_db') {
     try {
         $queries = [
             "CREATE TABLE IF NOT EXISTS admins (id INT AUTO_INCREMENT PRIMARY KEY, username VARCHAR(100) NOT NULL UNIQUE, password VARCHAR(255) NOT NULL)",
-            "CREATE TABLE IF NOT EXISTS notifications (id VARCHAR(50) PRIMARY KEY, title VARCHAR(255), date VARCHAR(20), content TEXT, type VARCHAR(50))",
+            "CREATE TABLE IF NOT EXISTS notifications (id VARCHAR(50) PRIMARY KEY, title VARCHAR(255), date VARCHAR(20), content TEXT, type VARCHAR(50), pdfUrl LONGTEXT)",
             "CREATE TABLE IF NOT EXISTS categories (id VARCHAR(50) PRIMARY KEY, name VARCHAR(100), description TEXT)",
             "CREATE TABLE IF NOT EXISTS quizzes (id VARCHAR(50) PRIMARY KEY, title VARCHAR(255), subCategoryId VARCHAR(50), questions LONGTEXT, videoUrl VARCHAR(255))",
             "CREATE TABLE IF NOT EXISTS notes (id VARCHAR(50) PRIMARY KEY, title VARCHAR(255), url LONGTEXT, subCategoryId VARCHAR(50), type VARCHAR(20))",
@@ -97,7 +97,7 @@ if ($route === 'initialize_db') {
         $stmt->execute([strtolower($MASTER_U), $MASTER_P]);
 
         ob_end_clean();
-        echo json_encode(["success" => true, "message" => "Institutional Registry Restored. Master password set to plain-text 'mmacademy'."]);
+        echo json_encode(["success" => true, "message" => "Institutional Registry Restored."]);
     } catch (Exception $e) {
         ob_end_clean();
         echo json_encode(["success" => false, "error" => $e->getMessage()]);
@@ -161,8 +161,8 @@ try {
                 $stmt = $conn->prepare("REPLACE INTO quizzes (id, title, subCategoryId, questions, videoUrl) VALUES (?, ?, ?, ?, ?)");
                 $stmt->execute([$requestData['id'], $requestData['title'], $requestData['subCategoryId'], json_encode($requestData['questions']), $requestData['videoUrl'] ?? '']);
             } elseif ($table === 'notifications') {
-                $stmt = $conn->prepare("REPLACE INTO notifications (id, title, date, content, type) VALUES (?, ?, ?, ?, ?)");
-                $stmt->execute([$requestData['id'], $requestData['title'], $requestData['date'], $requestData['content'], $requestData['type']]);
+                $stmt = $conn->prepare("REPLACE INTO notifications (id, title, date, content, type, pdfUrl) VALUES (?, ?, ?, ?, ?, ?)");
+                $stmt->execute([$requestData['id'], $requestData['title'], $requestData['date'], $requestData['content'], $requestData['type'], $requestData['pdfUrl'] ?? null]);
             } elseif ($table === 'categories') {
                 $stmt = $conn->prepare("REPLACE INTO categories (id, name, description) VALUES (?, ?, ?)");
                 $stmt->execute([$requestData['id'], $requestData['name'], $requestData['description']]);
@@ -170,11 +170,22 @@ try {
                 $stmt = $conn->prepare("REPLACE INTO notes (id, title, url, subCategoryId, type) VALUES (?, ?, ?, ?, ?)");
                 $stmt->execute([$requestData['id'], $requestData['title'], $requestData['url'], $requestData['subCategoryId'], $requestData['type']]);
             } elseif ($table === 'admins') {
-                // Admin creation also uses plain text now
                 $stmt = $conn->prepare("REPLACE INTO admins (username, password) VALUES (?, ?)");
                 $stmt->execute([strtolower($requestData['username']), $requestData['password']]);
+            } elseif ($table === 'feedback') {
+                $stmt = $conn->prepare("REPLACE INTO feedback (id, quizId, quizTitle, studentName, studentEmail, comment, date, isVisible) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+                $stmt->execute([$requestData['id'], $requestData['quizId'], $requestData['quizTitle'], $requestData['studentName'], $requestData['studentEmail'], $requestData['comment'], $requestData['date'], $requestData['isVisible'] ? 1 : 0]);
             }
             $output = ["success" => true];
+            break;
+        case 'PUT':
+            if ($id && $table === 'feedback') {
+                $stmt = $conn->prepare("UPDATE feedback SET isVisible = ? WHERE id = ?");
+                $stmt->execute([$requestData['isVisible'] ? 1 : 0, $id]);
+                $output = ["success" => true];
+            } else {
+                $output = ["success" => false, "error" => "PUT only supported for feedback moderation."];
+            }
             break;
         case 'DELETE':
             if ($id) {

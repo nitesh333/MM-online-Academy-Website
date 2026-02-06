@@ -52,10 +52,10 @@ const Navbar: React.FC<NavbarProps> = ({ onNavigate }) => {
           <div className="flex items-center gap-4">
              <span className="flex items-center gap-2"><Star className="h-2.5 w-2.5 text-gold-light fill-current" /> National Academic Standard</span>
             <div className="flex items-center gap-3 border-l border-white/20 pl-4">
-              <a href="https://www.facebook.com/MirpurkhasAliTalpurTown/" target="_blank" rel="noopener noreferrer"><Facebook className="h-3.5 w-3.5 cursor-pointer hover:text-gold-light transition-colors" title="Facebook" /></a>
-              <a href="https://www.instagram.com/majid.maqsood01/?hl=en" target="_blank" rel="noopener noreferrer"><Instagram className="h-3.5 w-3.5 cursor-pointer hover:text-gold-light transition-colors" title="Instagram" /></a>
-              <a href="https://www.linkedin.com/in/majid-maqsood-633444374/" target="_blank" rel="noopener noreferrer"><Linkedin className="h-3.5 w-3.5 cursor-pointer hover:text-gold-light transition-colors" title="LinkedIn" /></a>
-              <a href="https://www.tiktok.com/@majid.maqsood8" target="_blank" rel="noopener noreferrer"><TiktokIcon className="h-3.5 w-3.5 cursor-pointer hover:text-gold-light transition-colors" title="TikTok" /></a>
+              <a href="https://www.facebook.com/MirpurkhasAliTalpurTown/" target="_blank" rel="noopener noreferrer" title="Facebook"><Facebook className="h-3.5 w-3.5 cursor-pointer hover:text-gold-light transition-colors" /></a>
+              <a href="https://www.instagram.com/majid.maqsood01/?hl=en" target="_blank" rel="noopener noreferrer" title="Instagram"><Instagram className="h-3.5 w-3.5 cursor-pointer hover:text-gold-light transition-colors" /></a>
+              <a href="https://www.linkedin.com/in/majid-maqsood-633444374/" target="_blank" rel="noopener noreferrer" title="LinkedIn"><Linkedin className="h-3.5 w-3.5 cursor-pointer hover:text-gold-light transition-colors" /></a>
+              <a href="https://www.tiktok.com/@majid.maqsood8" target="_blank" rel="noopener noreferrer" title="TikTok"><TiktokIcon className="h-3.5 w-3.5 cursor-pointer hover:text-gold-light transition-colors" /></a>
             </div>
           </div>
         </div>
