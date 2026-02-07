@@ -5,24 +5,32 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>MM Online Academy - Pakistan's Elite Legal Portal</title>
-  
-  <!-- Google AdSense - Replace ca-pub-XXXXXXXXXXXXXXXX with your actual ID -->
-  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-XXXXXXXXXXXXXXXX" crossorigin="anonymous"></script>
-
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   
+  <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
       darkMode: 'class',
       theme: {
         extend: {
-          fontFamily: { sans: ['Poppins', 'sans-serif'] },
+          fontFamily: {
+            sans: ['Poppins', 'sans-serif'],
+          },
           colors: {
-            pakgreen: { DEFAULT: '#01411C', light: '#02612a', dark: '#012111', deepest: '#01160b' },
-            gold: { DEFAULT: '#D4AF37', light: '#f3d277', dark: '#b8860b' }
+            pakgreen: {
+              DEFAULT: '#01411C',
+              light: '#02612a',
+              dark: '#012111', 
+              deepest: '#01160b', 
+            },
+            gold: {
+              DEFAULT: '#D4AF37',
+              light: '#f3d277', 
+              dark: '#b8860b',
+            }
           },
           animation: {
             'spin-slow': 'spin-slow 8s linear infinite',
@@ -31,10 +39,24 @@
             'progress': 'progress 2s ease-in-out infinite',
           },
           keyframes: {
-            'spin-slow': { from: { transform: 'rotate(0deg)' }, to: { transform: 'rotate(360deg)' } },
-            'float': { '0%, 100%': { transform: 'translateY(0px)' }, '50%': { transform: 'translateY(-5px)' } },
-            'pulse-subtle': { '0%, 100%': { opacity: 1 }, '50%': { opacity: 0.8 } },
-            'progress': { '0%': { transform: 'scaleX(0)', transformOrigin: 'left' }, '50%': { transform: 'scaleX(1)', transformOrigin: 'left' }, '50.1%': { transform: 'scaleX(1)', transformOrigin: 'right' }, '100%': { transform: 'scaleX(0)', transformOrigin: 'right' } }
+            'spin-slow': {
+              from: { transform: 'rotate(0deg)' },
+              to: { transform: 'rotate(360deg)' },
+            },
+            'float': {
+              '0%, 100%': { transform: 'translateY(0px)' },
+              '50%': { transform: 'translateY(-5px)' },
+            },
+            'pulse-subtle': {
+              '0%, 100%': { opacity: 1 },
+              '50%': { opacity: 0.8 },
+            },
+            'progress': {
+              '0%': { transform: 'scaleX(0)', transformOrigin: 'left' },
+              '50%': { transform: 'scaleX(1)', transformOrigin: 'left' },
+              '50.1%': { transform: 'scaleX(1)', transformOrigin: 'right' },
+              '100%': { transform: 'scaleX(0)', transformOrigin: 'right' }
+            }
           }
         }
       }
@@ -42,31 +64,62 @@
   </script>
 
   <style>
-    body { margin: 0; padding: 0; overflow-x: hidden; font-family: 'Poppins', sans-serif; transition: background-color 0.4s; }
-    #root { min-height: 100vh; display: flex; flex-direction: column; }
-    .islamic-pattern { background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M30 0l5.878 18.09h19.022l-15.388 11.18 5.878 18.09L30 36.18l-15.39 11.18 5.878-18.09L5.1 18.09h19.022L30 0z' fill='%2301411C' fill-opacity='0.03' fill-rule='evenodd'/%3E%3C/svg%3E"); }
-    .dark .islamic-pattern { background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M30 0l5.878 18.09h19.022l-15.388 11.18 5.878 18.09L30 36.18l-15.39 11.18 5.878-18.09L5.1 18.09h19.022L30 0z' fill='%23f3d277' fill-opacity='0.04' fill-rule='evenodd'/%3E%3C/svg%3E"); }
-    ::-webkit-scrollbar { width: 6px; }
-    ::-webkit-scrollbar-thumb { background-color: #01411C; border-radius: 9999px; }
-  </style>
-
-  <script type="importmap">
-  {
-    "imports": {
-      "react": "https://esm.sh/react@^19.2.4",
-      "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
-      "react/": "https://esm.sh/react@^19.2.4/",
-      "@google/genai": "https://esm.sh/@google/genai@^1.3.0",
-      "lucide-react": "https://esm.sh/lucide-react@^0.563.0",
-      "vite": "https://esm.sh/vite@^7.3.1",
-      "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.3",
-      "mammoth": "https://esm.sh/mammoth@^1.11.0",
-      "pdfjs-dist": "https://esm.sh/pdfjs-dist@^5.4.624"
+    body {
+      margin: 0;
+      padding: 0;
+      overflow-x: hidden;
+      font-family: 'Poppins', sans-serif;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      transition: background-color 0.4s cubic-bezier(0.4, 0, 0.2, 1), color 0.4s ease;
     }
+
+    #root {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .islamic-pattern {
+      background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M30 0l5.878 18.09h19.022l-15.388 11.18 5.878 18.09L30 36.18l-15.39 11.18 5.878-18.09L5.1 18.09h19.022L30 0z' fill='%2301411C' fill-opacity='0.03' fill-rule='evenodd'/%3E%3C/svg%3E");
+    }
+    
+    .dark .islamic-pattern {
+      background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M30 0l5.878 18.09h19.022l-15.388 11.18 5.878 18.09L30 36.18l-15.39 11.18 5.878-18.09L5.1 18.09h19.022L30 0z' fill='%23f3d277' fill-opacity='0.04' fill-rule='evenodd'/%3E%3C/svg%3E");
+    }
+
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background-color: transparent; }
+    ::-webkit-scrollbar-thumb { background-color: #01411C; border-radius: 9999px; }
+    .dark ::-webkit-scrollbar-thumb { background-color: #f3d27744; }
+    ::-webkit-scrollbar-thumb:hover { background-color: #D4AF37; }
+
+    .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
+
+    * {
+      transition-property: background-color, border-color, color, fill, stroke, opacity, box-shadow, transform;
+      transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+      transition-duration: 300ms;
+    }
+  </style>
+<script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@^19.2.4",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
+    "react/": "https://esm.sh/react@^19.2.4/",
+    "@google/genai": "https://esm.sh/@google/genai@^1.3.0",
+    "lucide-react": "https://esm.sh/lucide-react@^0.563.0",
+    "vite": "https://esm.sh/vite@^7.3.1",
+    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.3",
+    "mammoth": "https://esm.sh/mammoth@^1.11.0",
+    "pdfjs-dist": "https://esm.sh/pdfjs-dist@^5.4.624"
   }
-  </script>
+}
+</script>
 </head>
-<body class="bg-zinc-50 text-zinc-900 dark:bg-pakgreen-deepest dark:text-zinc-100 islamic-pattern">
+<body class="bg-zinc-50 text-zinc-900 dark:bg-pakgreen-deepest dark:text-zinc-100 islamic-pattern transition-colors duration-500">
   <div id="root"></div>
   <script type="module" src="/index.tsx"></script>
 </body>

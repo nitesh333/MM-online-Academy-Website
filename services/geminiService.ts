@@ -5,6 +5,7 @@ import { Question } from "../types";
 /**
  * Gemini-powered MCQ extraction service.
  * Converts raw text from documents into structured quiz objects.
+ * This function MUST be exported to resolve TS2305 error in AdminPanel.
  */
 export const parseQuizFromText = async (rawText: string): Promise<Partial<Question>[]> => {
   if (!process.env.API_KEY) {
@@ -15,19 +16,18 @@ export const parseQuizFromText = async (rawText: string): Promise<Partial<Questi
   try {
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     
-    // Improved prompt to focus on finding the CORRECT answers specifically
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
-      contents: `Extract all MCQs from the provided text. 
+      contents: `Extract all MCQs from this text.
+      The text may contain legal or academic content. 
+      Ensure each question has exactly 4 options. 
+      Infer the correct answer if not explicitly stated.
       
-      IMPORTANT: 
-      1. Look for an answer key at the end of the text or specific markers like "Ans:", "Correct:", or "(*)".
-      2. If an answer is explicitly given in the text, use it. 
-      3. If no answer is given, use your legal/academic knowledge to determine the most accurate answer.
-      4. Each question MUST have 4 options. 
-      5. Provide a brief explanation for the correct answer.
-
-      Output ONLY as a JSON array.
+      Output ONLY as a JSON array of objects with:
+      text: the question string
+      options: array of 4 strings
+      correctAnswer: index 0-3
+      explanation: brief reason why it's correct
       
       TEXT:
       ${rawText.substring(0, 30000)}`,
@@ -45,12 +45,7 @@ export const parseQuizFromText = async (rawText: string): Promise<Partial<Questi
                 minItems: 4,
                 maxItems: 4
               },
-              correctAnswer: { 
-                type: Type.INTEGER, 
-                description: "Index (0-3) of the correct option",
-                minimum: 0, 
-                maximum: 3 
-              },
+              correctAnswer: { type: Type.INTEGER, minimum: 0, maximum: 3 },
               explanation: { type: Type.STRING }
             },
             required: ["text", "options", "correctAnswer"]
