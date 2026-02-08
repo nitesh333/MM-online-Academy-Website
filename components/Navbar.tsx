@@ -31,7 +31,7 @@ const Navbar: React.FC<NavbarProps> = ({ onNavigate }) => {
     { label: 'LAT Series', view: 'category' as const, subId: 'lat' },
     { label: 'Law GAT Series', view: 'category' as const, subId: 'law-gat' },
     { label: 'LLB Notes', view: 'category' as const, subId: 'llb-s1' },
-    { label: 'Gazette', view: 'notifications' as const },
+    { label: 'News', view: 'notifications' as const },
     { label: 'Contact', view: 'contact' as const }
   ];
 

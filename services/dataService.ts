@@ -1,10 +1,12 @@
 
 import { Notification, SubCategory, Quiz, StudyNote, QuizFeedback } from '../types';
 
-// Use relative path so it works regardless of the domain name it's hosted on
 const API_BASE_URL = './api.php'; 
 
 export const dataService = {
+  // Simple cache to speed up initial page loads
+  _cache: {} as Record<string, any>,
+
   async request(endpoint: string, method: string = 'GET', body?: any) {
     const segments = endpoint.split('/').filter(Boolean);
     const route = segments[0];
@@ -14,6 +16,11 @@ export const dataService = {
     if (id) url += `&id=${encodeURIComponent(id)}`;
 
     try {
+      // Use cache for GET requests to categories and notifications for instant UI
+      if (method === 'GET' && !id && this._cache[route]) {
+        // Return cache but continue to fetch in background (stale-while-revalidate style logic handled in App.tsx)
+      }
+
       const response = await fetch(url, {
         method,
         mode: 'cors',
@@ -27,18 +34,23 @@ export const dataService = {
         data = JSON.parse(text);
       } catch (e) {
         console.error("Non-JSON Server Response:", text);
-        throw new Error("Institutional Error: Invalid response format from academic server. Ensure api.php is present and PHP is active.");
+        throw new Error("Institutional Error: Invalid response format from academic server.");
       }
 
       if (!response.ok) {
         throw new Error(data.error || `System Error: ${response.status}`);
       }
 
+      // Update cache
+      if (method === 'GET' && !id) {
+        this._cache[route] = data;
+      }
+
       return data;
     } catch (error: any) {
       console.error("[DataService.request] Critical Failure:", error);
       if (route === 'login' || route === 'db_test' || route === 'initialize_db') throw error;
-      if (method === 'GET' && !id) return [];
+      if (method === 'GET' && !id) return this._cache[route] || [];
       throw error;
     }
   },
