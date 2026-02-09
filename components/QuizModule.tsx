@@ -1,5 +1,6 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
-import { CheckCircle, RefreshCw, MessageSquare, Send, Star, Info, ChevronRight } from 'lucide-react';
+import { CheckCircle, RefreshCw, MessageSquare, Send, Star, Info, ChevronRight, Youtube, ExternalLink } from 'lucide-react';
 import { Quiz, QuizFeedback, SubCategory, Question } from '../types';
 import { dataService } from '../services/dataService';
 import AdSlot from './AdBanner';
@@ -91,6 +92,22 @@ const QuizModule: React.FC<QuizModuleProps> = ({ quiz, categories, onComplete })
             <div className="mb-14 p-12 bg-white/5 border-2 border-gold/20 rounded-[48px] shadow-inner flex flex-col items-center">
                <span className="text-7xl sm:text-9xl font-black text-white dark:text-gold-light tracking-tighter">{percentage}%</span>
             </div>
+            
+            {/* AUTOMATIC YOUTUBE CHANNEL LINK AT END OF QUIZ */}
+            <div className="mb-12 p-8 bg-gold-light/10 border-2 border-gold/20 rounded-[32px] flex flex-col items-center animate-bounce-subtle">
+               <Youtube className="h-10 w-10 text-red-500 mb-4" />
+               <h4 className="text-gold-light font-black uppercase text-sm mb-2 tracking-widest">Master your preparation</h4>
+               <p className="text-[10px] font-bold text-white/70 uppercase tracking-widest mb-6">Watch expert lectures and past paper solutions on our channel.</p>
+               <a 
+                 href="https://www.youtube.com/channel/UCM2ZBxpqZZs95L2KYxAcSaQ" 
+                 target="_blank" 
+                 rel="noopener noreferrer"
+                 className="px-10 py-5 bg-red-600 hover:bg-red-700 text-white rounded-2xl text-[11px] font-black uppercase tracking-[0.2em] flex items-center gap-3 transition-all shadow-xl hover:scale-105"
+               >
+                 Visit our YouTube Channel <ExternalLink className="h-4 w-4" />
+               </a>
+            </div>
+
             <div className="flex flex-col sm:flex-row gap-6">
               <button onClick={initQuiz} className="flex-grow py-6 bg-gold-light text-pakgreen rounded-2xl font-black uppercase tracking-[0.3em] flex items-center justify-center gap-4 shadow-2xl">
                 <RefreshCw className="h-5 w-5" /> Retake Track
@@ -104,7 +121,7 @@ const QuizModule: React.FC<QuizModuleProps> = ({ quiz, categories, onComplete })
 
         <AdSlot placement="content" />
 
-        {/* FEEDBACK LIST - Visible to students */}
+        {/* FEEDBACK LIST */}
         <div className="bg-white dark:bg-pakgreen-dark/20 p-8 sm:p-12 rounded-[40px] border border-gold/10">
           <h3 className="text-xl font-black text-pakgreen dark:text-gold-light uppercase tracking-tighter mb-10 flex items-center gap-3">
              <Star className="h-5 w-5 text-gold-light" /> Student Experience

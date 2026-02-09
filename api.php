@@ -1,7 +1,6 @@
-
 <?php
 /**
- * Professional Academy Backend API - Plain-Text Auth v6
+ * Professional Academy Backend API - News Attachment Support v6
  * Hardcoded Master Login: mmonlineacademy26@gmail.com / mmacademy
  */
 
@@ -23,7 +22,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit;
 }
 
-// 3. MASTER CONFIG (Plain Text)
+// 3. MASTER CONFIG
 $MASTER_U = 'mmonlineacademy26@gmail.com';
 $MASTER_P = 'mmacademy';
 
@@ -42,44 +41,20 @@ $route = isset($requestData['route']) ? trim($requestData['route']) : '';
 $id = isset($requestData['id']) ? trim($requestData['id']) : '';
 $method = strtoupper($_SERVER['REQUEST_METHOD']);
 
-// 6. SYSTEM ROUTES
-if ($route === 'db_test') {
-    ob_end_clean();
-    echo json_encode(["success" => true, "status" => "ONLINE", "message" => "System reachable"]);
-    exit;
-}
-
-if ($route === 'login') {
-    $u = strtolower(trim($requestData['username'] ?? ''));
-    $p = trim($requestData['password'] ?? '');
-    
-    if ($u === strtolower($MASTER_U) && $p === $MASTER_P) {
-        ob_end_clean();
-        echo json_encode(["success" => true, "user" => $MASTER_U, "role" => "master"]);
-        exit;
-    }
-}
-
-// 7. DB CONNECTION
+// 6. DB CONNECTION
 try {
     $conn = new PDO("mysql:host=$host;dbname=$db_name", $username, $password);
     $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
     $conn->exec("set names utf8");
 } catch(PDOException $e) {
-    if ($route === 'login') {
-        ob_end_clean();
-        http_response_code(401);
-        echo json_encode(["success" => false, "error" => "Access Denied: Master check failed and Database is offline"]);
-        exit;
-    }
     ob_end_clean();
     http_response_code(500);
     echo json_encode(["success" => false, "error" => "DATABASE_OFFLINE", "debug" => $e->getMessage()]);
     exit;
 }
 
-// 8. DB INITIALIZATION
-if ($route === 'initialize_db') {
+// 7. DB INITIALIZATION & AUTO-MIGRATION
+if ($route === 'initialize_db' || $route === 'db_test') {
     try {
         $queries = [
             "CREATE TABLE IF NOT EXISTS admins (id INT AUTO_INCREMENT PRIMARY KEY, username VARCHAR(100) NOT NULL UNIQUE, password VARCHAR(255) NOT NULL)",
@@ -91,91 +66,78 @@ if ($route === 'initialize_db') {
         ];
         foreach($queries as $q) { $conn->exec($q); }
         
+        $colCheck = $conn->query("SHOW COLUMNS FROM notifications LIKE 'attachmentUrl'");
+        if ($colCheck->rowCount() == 0) {
+            $conn->exec("ALTER TABLE notifications ADD COLUMN attachmentUrl LONGTEXT");
+        }
+
         $stmt = $conn->prepare("REPLACE INTO admins (id, username, password) VALUES (1, ?, ?)");
         $stmt->execute([strtolower($MASTER_U), $MASTER_P]);
 
-        ob_end_clean();
-        echo json_encode(["success" => true, "message" => "Institutional Registry Restored."]);
+        if ($route === 'initialize_db') {
+            ob_end_clean();
+            echo json_encode(["success" => true, "message" => "Database ready for News attachments."]);
+            exit;
+        }
     } catch (Exception $e) {
-        ob_end_clean();
-        echo json_encode(["success" => false, "error" => $e->getMessage()]);
+        if ($route === 'initialize_db') {
+            ob_end_clean();
+            echo json_encode(["success" => false, "error" => $e->getMessage()]);
+            exit;
+        }
     }
-    exit;
 }
 
-// 9. SECONDARY LOGIN
-if ($route === 'login') {
-    $u = strtolower(trim($requestData['username'] ?? ''));
-    $p = trim($requestData['password'] ?? '');
-    
-    $stmt = $conn->prepare("SELECT * FROM admins WHERE LOWER(username) = ? LIMIT 1");
-    $stmt->execute([$u]);
-    $user = $stmt->fetch(PDO::FETCH_ASSOC);
-    
-    if ($user && $p === $user['password']) {
-        ob_end_clean();
-        echo json_encode(["success" => true, "user" => $user['username']]);
-    } else {
-        ob_end_clean();
-        http_response_code(401);
-        echo json_encode(["success" => false, "error" => "Access Denied: Invalid Credentials"]);
-    }
-    exit;
-}
-
-// 10. CRUD OPERATIONS
-$tables = ['notifications' => 'notifications', 'categories' => 'categories', 'quizzes' => 'quizzes', 'notes' => 'notes', 'feedback' => 'feedback', 'admins' => 'admins'];
+// 8. CRUD
+$tables = ['notifications' => 'notifications', 'categories' => 'categories', 'quizzes' => 'quizzes', 'notes' => 'notes', 'feedback' => 'feedback'];
 $table = $tables[$route] ?? null;
 
 if (!$table) {
-    ob_end_clean();
-    http_response_code(404);
-    echo json_encode(["success" => false, "error" => "Route Not Found"]);
+    if ($route === 'db_test') {
+        ob_end_clean();
+        echo json_encode(["success" => true, "status" => "Connected"]);
+    } else {
+        ob_end_clean();
+        http_response_code(404);
+        echo json_encode(["success" => false, "error" => "Route Not Found"]);
+    }
     exit;
 }
 
 try {
     switch ($method) {
         case 'GET':
-            if ($id) {
-                $stmt = $conn->prepare("SELECT * FROM $table WHERE id = ?");
-                $stmt->execute([$id]);
-                $res = $stmt->fetch(PDO::FETCH_ASSOC);
-                if ($table === 'quizzes' && $res) $res['questions'] = json_decode($res['questions']);
-                $output = $res ?: (object)[];
-            } else {
-                $stmt = $conn->prepare("SELECT * FROM $table ORDER BY id DESC");
-                $stmt->execute();
-                $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
-                if ($table === 'quizzes') {
-                    foreach ($rows as &$r) { $r['questions'] = json_decode($r['questions'] ?? '[]'); }
-                }
-                $output = $rows;
+            $stmt = $id ? $conn->prepare("SELECT * FROM $table WHERE id = ?") : $conn->prepare("SELECT * FROM $table ORDER BY id DESC");
+            $id ? $stmt->execute([$id]) : $stmt->execute();
+            $output = $id ? ($stmt->fetch(PDO::FETCH_ASSOC) ?: (object)[]) : $stmt->fetchAll(PDO::FETCH_ASSOC);
+            if ($table === 'quizzes') {
+                if ($id) { if($output->questions) $output->questions = json_decode($output->questions); }
+                else { foreach($output as &$r) $r['questions'] = json_decode($r['questions'] ?? '[]'); }
             }
             break;
         case 'POST':
-            if ($table === 'quizzes') {
+            if ($table === 'notifications') {
+                $stmt = $conn->prepare("REPLACE INTO notifications (id, title, date, content, type, attachmentUrl) VALUES (:id, :title, :date, :content, :type, :attachment)");
+                $stmt->execute([
+                    ':id' => $requestData['id'],
+                    ':title' => $requestData['title'],
+                    ':date' => $requestData['date'],
+                    ':content' => $requestData['content'],
+                    ':type' => $requestData['type'],
+                    ':attachment' => $requestData['attachmentUrl'] ?? ''
+                ]);
+            } elseif ($table === 'quizzes') {
                 $stmt = $conn->prepare("REPLACE INTO quizzes (id, title, subCategoryId, questions, videoUrl) VALUES (?, ?, ?, ?, ?)");
                 $stmt->execute([$requestData['id'], $requestData['title'], $requestData['subCategoryId'], json_encode($requestData['questions']), $requestData['videoUrl'] ?? '']);
-            } elseif ($table === 'feedback') {
-                $stmt = $conn->prepare("REPLACE INTO feedback (id, quizId, quizTitle, studentName, studentEmail, comment, date, isVisible) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
-                $stmt->execute([$requestData['id'], $requestData['quizId'], $requestData['quizTitle'], $requestData['studentName'], $requestData['studentEmail'], $requestData['comment'], $requestData['date'], (int)($requestData['isVisible'] ?? 0)]);
-            } elseif ($table === 'notifications') {
-                $stmt = $conn->prepare("REPLACE INTO notifications (id, title, date, content, type, attachmentUrl) VALUES (?, ?, ?, ?, ?, ?)");
-                $stmt->execute([$requestData['id'], $requestData['title'], $requestData['date'], $requestData['content'], $requestData['type'], $requestData['attachmentUrl'] ?? '']);
-            } elseif ($table === 'categories') {
+            } else if ($table === 'categories') {
                 $stmt = $conn->prepare("REPLACE INTO categories (id, name, description) VALUES (?, ?, ?)");
                 $stmt->execute([$requestData['id'], $requestData['name'], $requestData['description']]);
-            } elseif ($table === 'notes') {
+            } else if ($table === 'notes') {
                 $stmt = $conn->prepare("REPLACE INTO notes (id, title, url, subCategoryId, type) VALUES (?, ?, ?, ?, ?)");
                 $stmt->execute([$requestData['id'], $requestData['title'], $requestData['url'], $requestData['subCategoryId'], $requestData['type']]);
-            }
-            $output = ["success" => true];
-            break;
-        case 'PUT':
-            if ($id && $table === 'feedback') {
-                $stmt = $conn->prepare("UPDATE feedback SET isVisible = ? WHERE id = ?");
-                $stmt->execute([(int)$requestData['isVisible'], $id]);
+            } else if ($table === 'feedback') {
+                $stmt = $conn->prepare("REPLACE INTO feedback (id, quizId, quizTitle, studentName, studentEmail, comment, date, isVisible) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+                $stmt->execute([$requestData['id'], $requestData['quizId'], $requestData['quizTitle'], $requestData['studentName'], $requestData['studentEmail'], $requestData['comment'], $requestData['date'], (int)($requestData['isVisible'] ?? 0)]);
             }
             $output = ["success" => true];
             break;

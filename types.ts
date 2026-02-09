@@ -52,7 +52,8 @@ export interface Notification {
   date: string;
   content: string;
   type: 'Test Date' | 'Result' | 'News';
-  attachmentUrl?: string; // URL or base64 string for PDF/Image
+  attachmentUrl?: string; // Base64 image
+  linkedQuizId?: string; // ID of quiz to link to this news
 }
 
 export interface AppState {

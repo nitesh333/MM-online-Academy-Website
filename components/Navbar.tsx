@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Search, Menu, X, BookOpen, Facebook, Twitter, Youtube, Phone, Mail, ChevronRight, Sun, Moon, Star, Instagram, Linkedin, Music as TiktokIcon } from 'lucide-react';
 import { AppState } from '../types';
