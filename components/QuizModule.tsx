@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { CheckCircle, RefreshCw, MessageSquare, Send, Star, Info, ChevronRight, Youtube, ExternalLink } from 'lucide-react';
 import { Quiz, QuizFeedback, SubCategory, Question } from '../types';
@@ -18,7 +17,6 @@ const QuizModule: React.FC<QuizModuleProps> = ({ quiz, categories, onComplete })
   const [isFinished, setIsFinished] = useState(false);
   const [correctCount, setCorrectCount] = useState(0);
 
-  // Shuffling logic: runs on load and on retake
   const initQuiz = useCallback(() => {
     const randomized = quiz.questions.map(q => {
       const originalCorrectText = q.options[q.correctAnswer];
@@ -35,50 +33,7 @@ const QuizModule: React.FC<QuizModuleProps> = ({ quiz, categories, onComplete })
 
   useEffect(() => { initQuiz(); }, [initQuiz]);
 
-  const [quizFeedbacks, setQuizFeedbacks] = useState<QuizFeedback[]>([]);
-  const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
-  const [feedbackForm, setFeedbackForm] = useState({ name: '', email: '', comment: '' });
-  const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
-
-  const loadFeedbacks = useCallback(async () => {
-    try {
-      const all = await dataService.getQuizFeedbacks();
-      if (all && Array.isArray(all)) {
-        const visible = all.filter(f => f.quizId === quiz.id && (f.isVisible === true || String(f.isVisible) === '1'));
-        setQuizFeedbacks(visible);
-      }
-    } catch (err) {
-      console.error("Feedback error", err);
-    }
-  }, [quiz.id]);
-
-  useEffect(() => { if (isFinished) loadFeedbacks(); }, [isFinished, loadFeedbacks]);
-
   const percentage = Math.round((correctCount / shuffledQuestions.length) * 100);
-
-  const handleFeedbackSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!feedbackForm.comment.trim() || !feedbackForm.name.trim()) return;
-    setIsSubmittingFeedback(true);
-    const feedback: QuizFeedback = {
-      id: `fb_${Date.now()}`,
-      quizId: quiz.id,
-      quizTitle: quiz.title,
-      studentName: feedbackForm.name.trim(),
-      studentEmail: feedbackForm.email.trim() || 'student@mmacademy.pk',
-      comment: feedbackForm.comment.trim(),
-      date: new Date().toLocaleDateString(),
-      isVisible: false 
-    };
-    try {
-      await dataService.saveQuizFeedback(feedback);
-      setFeedbackSubmitted(true);
-    } catch (err) {
-      alert("Error saving review.");
-    } finally {
-      setIsSubmittingFeedback(false);
-    }
-  };
 
   if (shuffledQuestions.length === 0) return null;
 
@@ -93,8 +48,7 @@ const QuizModule: React.FC<QuizModuleProps> = ({ quiz, categories, onComplete })
                <span className="text-7xl sm:text-9xl font-black text-white dark:text-gold-light tracking-tighter">{percentage}%</span>
             </div>
             
-            {/* AUTOMATIC YOUTUBE CHANNEL LINK AT END OF QUIZ */}
-            <div className="mb-12 p-8 bg-gold-light/10 border-2 border-gold/20 rounded-[32px] flex flex-col items-center animate-bounce-subtle">
+            <div className="mb-12 p-8 bg-gold-light/10 border-2 border-gold/20 rounded-[32px] flex flex-col items-center">
                <Youtube className="h-10 w-10 text-red-500 mb-4" />
                <h4 className="text-gold-light font-black uppercase text-sm mb-2 tracking-widest">Master your preparation</h4>
                <p className="text-[10px] font-bold text-white/70 uppercase tracking-widest mb-6">Watch expert lectures and past paper solutions on our channel.</p>
@@ -117,42 +71,6 @@ const QuizModule: React.FC<QuizModuleProps> = ({ quiz, categories, onComplete })
               </button>
             </div>
           </div>
-        </div>
-
-        <AdSlot placement="content" />
-
-        {/* FEEDBACK LIST */}
-        <div className="bg-white dark:bg-pakgreen-dark/20 p-8 sm:p-12 rounded-[40px] border border-gold/10">
-          <h3 className="text-xl font-black text-pakgreen dark:text-gold-light uppercase tracking-tighter mb-10 flex items-center gap-3">
-             <Star className="h-5 w-5 text-gold-light" /> Student Experience
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {quizFeedbacks.length > 0 ? quizFeedbacks.map(f => (
-              <div key={f.id} className="p-6 bg-zinc-50 dark:bg-pakgreen-deepest rounded-3xl border border-zinc-200 dark:border-gold/5">
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="h-8 w-8 rounded-full bg-pakgreen text-white flex items-center justify-center font-black text-[10px]">{f.studentName.charAt(0)}</div>
-                  <span className="text-xs font-black text-pakgreen dark:text-white uppercase">{f.studentName}</span>
-                </div>
-                <p className="text-zinc-600 dark:text-zinc-300 text-xs italic">"{f.comment}"</p>
-              </div>
-            )) : <p className="text-[10px] font-black uppercase text-zinc-400">No verified reviews yet.</p>}
-          </div>
-        </div>
-
-        {/* FEEDBACK FORM */}
-        <div className="bg-white dark:bg-pakgreen-dark/40 rounded-[40px] shadow-2xl border border-gold/10 p-8 sm:p-16">
-          <h3 className="text-xl font-black text-pakgreen dark:text-gold-light uppercase mb-10">Submit Experience</h3>
-          {!feedbackSubmitted ? (
-            <form onSubmit={handleFeedbackSubmit} className="space-y-6">
-              <input required value={feedbackForm.name} onChange={e => setFeedbackForm({...feedbackForm, name: e.target.value})} className="w-full bg-zinc-50 dark:bg-pakgreen-deepest border-2 border-zinc-200 dark:border-gold/10 p-5 rounded-2xl text-sm outline-none dark:text-white" placeholder="Name" />
-              <textarea required value={feedbackForm.comment} onChange={e => setFeedbackForm({...feedbackForm, comment: e.target.value})} rows={4} className="w-full bg-zinc-50 dark:bg-pakgreen-deepest border-2 border-zinc-200 dark:border-gold/10 p-6 rounded-2xl text-sm outline-none dark:text-white" placeholder="Comments..." />
-              <button type="submit" disabled={isSubmittingFeedback} className="w-full py-5 bg-pakgreen dark:bg-gold-light text-white dark:text-pakgreen rounded-2xl font-black uppercase text-[10px] tracking-[0.4em] shadow-xl">
-                {isSubmittingFeedback ? 'Syncing...' : 'Register Feedback'}
-              </button>
-            </form>
-          ) : (
-            <div className="text-center py-6"><h4 className="font-black text-pakgreen dark:text-white uppercase">Feedback Registered Successfully</h4></div>
-          )}
         </div>
       </div>
     );
@@ -199,12 +117,6 @@ const QuizModule: React.FC<QuizModuleProps> = ({ quiz, categories, onComplete })
         </div>
         {selectedAnswer !== null && (
           <div className="mt-14 flex flex-col items-center">
-            {currentQuestion.explanation && (
-              <div className="w-full mb-8 p-6 bg-gold/5 border border-gold/10 rounded-2xl animate-in zoom-in-95">
-                <div className="text-gold-dark dark:text-gold-light font-black text-[10px] uppercase mb-2">Rationale</div>
-                <p className="text-zinc-600 dark:text-zinc-300 text-xs italic">{currentQuestion.explanation}</p>
-              </div>
-            )}
             <button onClick={() => {
                 if (currentQuestionIndex < shuffledQuestions.length - 1) setCurrentQuestionIndex(i => i + 1);
                 else setIsFinished(true);

@@ -61,7 +61,7 @@ const Navbar: React.FC<NavbarProps> = ({ onNavigate }) => {
       </div>
 
       {/* Main Header */}
-      <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-3 md:py-6 flex justify-between items-center">
+      <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-3 md:py-6 flex justify-between items-center gap-4">
         <div 
           className="flex items-center cursor-pointer select-none group min-w-0"
           onClick={() => handleNavClick('home')}
@@ -73,15 +73,23 @@ const Navbar: React.FC<NavbarProps> = ({ onNavigate }) => {
             <Star className="absolute -top-1 -right-1 h-4 w-4 text-gold-light fill-current animate-pulse-subtle" />
           </div>
           <div className="flex flex-col overflow-hidden">
-            <h1 className="text-base sm:text-lg md:text-3xl font-black text-pakgreen dark:text-gold-light leading-none uppercase tracking-tight truncate">MM Online Academy</h1>
-            <p className="text-[7px] sm:text-[9px] md:text-xs font-black text-zinc-500 dark:text-zinc-400 mt-1 tracking-[0.2em] uppercase truncate">National Gateway to Legal Excellence</p>
+            <h1 className="text-base sm:text-lg md:text-3xl font-black text-pakgreen dark:text-gold-light leading-none uppercase tracking-tight truncate">MM Academy</h1>
+            <p className="text-[7px] sm:text-[9px] md:text-xs font-black text-zinc-500 dark:text-zinc-400 mt-1 tracking-[0.2em] uppercase truncate">Gateway to Legal Excellence</p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2 sm:gap-4">
+        {/* ARABIC INVOCATION - ENLARGED */}
+        <div className="flex-grow flex justify-center items-center pointer-events-none px-4">
+          <span className="hidden lg:block text-4xl xl:text-5xl font-serif font-bold text-pakgreen dark:text-gold-light opacity-90 whitespace-nowrap" style={{ direction: 'rtl' }}>
+            ربِّ زِدْنِي عِلْماً
+          </span>
+        </div>
+
+        <div className="flex items-center gap-2 sm:gap-4 shrink-0">
           <button 
             onClick={toggleTheme}
             className="p-2 md:p-3 rounded-xl bg-zinc-100 dark:bg-pakgreen-dark text-pakgreen dark:text-gold-light hover:bg-gold-light dark:hover:bg-gold-light hover:text-white dark:hover:text-pakgreen transition-all border border-zinc-200 dark:border-gold/20"
+            aria-label="Toggle Theme"
           >
             {theme === 'dark' ? <Sun className="h-4 w-4 md:h-5 md:w-5" /> : <Moon className="h-4 w-4 md:h-5 md:w-5" />}
           </button>
@@ -89,6 +97,7 @@ const Navbar: React.FC<NavbarProps> = ({ onNavigate }) => {
           <button 
             className="lg:hidden p-2 text-pakgreen dark:text-gold-light hover:bg-zinc-100 dark:hover:bg-pakgreen-dark rounded-xl transition-colors z-[110]"
             onClick={() => setIsMenuOpen(!isMenuOpen)}
+            aria-label="Toggle Menu"
           >
             {isMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
           </button>
@@ -119,6 +128,9 @@ const Navbar: React.FC<NavbarProps> = ({ onNavigate }) => {
              <div className="flex items-center gap-3">
                 <BookOpen className="h-6 w-6 text-pakgreen dark:text-gold-light" />
                 <span className="text-pakgreen dark:text-gold-light font-black text-sm uppercase tracking-tighter">Navigation</span>
+             </div>
+             <div className="text-center">
+               <span className="text-2xl font-serif font-bold text-pakgreen dark:text-gold-light" style={{ direction: 'rtl' }}>ربِّ زِدْنِي عِلْماً</span>
              </div>
           </div>
           
