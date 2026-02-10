@@ -16,6 +16,10 @@ const QuizModule: React.FC<QuizModuleProps> = ({ quiz, categories, onComplete })
   const [answers, setAnswers] = useState<(number | null)[]>([]);
   const [isFinished, setIsFinished] = useState(false);
   const [correctCount, setCorrectCount] = useState(0);
+  
+  // Feedback Form State
+  const [feedbackSent, setFeedbackSent] = useState(false);
+  const [feedbackForm, setFeedbackForm] = useState({ name: '', email: '', comment: '' });
 
   const initQuiz = useCallback(() => {
     const randomized = quiz.questions.map(q => {
@@ -29,9 +33,29 @@ const QuizModule: React.FC<QuizModuleProps> = ({ quiz, categories, onComplete })
     setCurrentQuestionIndex(0);
     setCorrectCount(0);
     setIsFinished(false);
+    setFeedbackSent(false);
+    setFeedbackForm({ name: '', email: '', comment: '' });
   }, [quiz]);
 
   useEffect(() => { initQuiz(); }, [initQuiz]);
+
+  const handleFeedbackSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!feedbackForm.comment) return;
+    try {
+      await dataService.saveQuizFeedback({
+        id: `fb_${Date.now()}`,
+        quizId: quiz.id,
+        quizTitle: quiz.title,
+        studentName: feedbackForm.name || 'Anonymous',
+        studentEmail: feedbackForm.email,
+        comment: feedbackForm.comment,
+        date: new Date().toLocaleDateString(),
+        isVisible: false
+      });
+      setFeedbackSent(true);
+    } catch (err) { alert('Failed to send feedback.'); }
+  };
 
   const percentage = Math.round((correctCount / shuffledQuestions.length) * 100);
 
@@ -62,11 +86,38 @@ const QuizModule: React.FC<QuizModuleProps> = ({ quiz, categories, onComplete })
                </a>
             </div>
 
+            {/* FEEDBACK FORM - High Contrast Version */}
+            {!feedbackSent ? (
+              <div className="mb-12 text-left bg-white p-8 rounded-[32px] border-4 border-gold/10 shadow-xl">
+                <form onSubmit={handleFeedbackSubmit}>
+                  <h4 className="text-pakgreen font-black uppercase text-sm mb-6 flex items-center gap-3">
+                    <div className="bg-pakgreen p-2 rounded-lg text-white"><MessageSquare className="h-4 w-4" /></div> 
+                    Submit Feedback
+                  </h4>
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                       <input value={feedbackForm.name} onChange={e => setFeedbackForm({...feedbackForm, name: e.target.value})} placeholder="Your Name (Optional)" className="w-full p-4 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-800 text-xs outline-none focus:border-pakgreen focus:ring-2 focus:ring-pakgreen/10" />
+                       <input value={feedbackForm.email} onChange={e => setFeedbackForm({...feedbackForm, email: e.target.value})} placeholder="Email (Optional)" className="w-full p-4 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-800 text-xs outline-none focus:border-pakgreen focus:ring-2 focus:ring-pakgreen/10" />
+                    </div>
+                    <textarea value={feedbackForm.comment} onChange={e => setFeedbackForm({...feedbackForm, comment: e.target.value})} placeholder="Help us improve. Was this quiz accurate?" required className="w-full p-4 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-800 text-xs outline-none focus:border-pakgreen focus:ring-2 focus:ring-pakgreen/10 min-h-[100px]" />
+                    <button type="submit" className="w-full py-5 bg-pakgreen text-white font-black uppercase text-[11px] tracking-widest rounded-xl hover:bg-pakgreen-light transition-all shadow-lg hover:shadow-xl">
+                      Send Feedback <Send className="h-3 w-3 inline ml-2" />
+                    </button>
+                  </div>
+                </form>
+              </div>
+            ) : (
+              <div className="mb-12 p-8 bg-emerald-500/20 border-2 border-emerald-500/50 rounded-[32px] text-emerald-300 font-bold uppercase text-xs flex flex-col items-center animate-in zoom-in">
+                <CheckCircle className="h-8 w-8 mb-4" />
+                Feedback Received. Thank you for helping MM Academy!
+              </div>
+            )}
+
             <div className="flex flex-col sm:flex-row gap-6">
-              <button onClick={initQuiz} className="flex-grow py-6 bg-gold-light text-pakgreen rounded-2xl font-black uppercase tracking-[0.3em] flex items-center justify-center gap-4 shadow-2xl">
+              <button onClick={initQuiz} className="flex-grow py-6 bg-gold-light text-pakgreen rounded-2xl font-black uppercase tracking-[0.3em] flex items-center justify-center gap-4 shadow-2xl hover:scale-105 transition-transform">
                 <RefreshCw className="h-5 w-5" /> Retake Track
               </button>
-              <button onClick={() => window.location.hash = '#home'} className="flex-grow py-6 bg-white/10 text-white rounded-2xl font-black uppercase tracking-[0.3em] border border-white/20">
+              <button onClick={() => window.location.hash = '#home'} className="flex-grow py-6 bg-white/10 text-white rounded-2xl font-black uppercase tracking-[0.3em] border border-white/20 hover:bg-white/20 transition-colors">
                 Exit Track
               </button>
             </div>

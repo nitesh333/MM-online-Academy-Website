@@ -1,26 +1,19 @@
-
-import { Notification, SubCategory, Quiz, StudyNote, QuizFeedback } from '../types';
+import { Notification, SubCategory, Topic, Quiz, StudyNote, QuizFeedback } from '../types';
 
 const API_BASE_URL = './api.php'; 
 
 export const dataService = {
-  // Simple cache to speed up initial page loads
-  _cache: {} as Record<string, any>,
-
   async request(endpoint: string, method: string = 'GET', body?: any) {
     const segments = endpoint.split('/').filter(Boolean);
     const route = segments[0];
     const id = segments[1];
     
-    let url = `${API_BASE_URL}?route=${encodeURIComponent(route)}`;
+    // Cache busting
+    const ts = Date.now();
+    let url = `${API_BASE_URL}?route=${encodeURIComponent(route)}&_t=${ts}`;
     if (id) url += `&id=${encodeURIComponent(id)}`;
 
     try {
-      // Use cache for GET requests to categories and notifications for instant UI
-      if (method === 'GET' && !id && this._cache[route]) {
-        // Return cache but continue to fetch in background (stale-while-revalidate style logic handled in App.tsx)
-      }
-
       const response = await fetch(url, {
         method,
         mode: 'cors',
@@ -33,28 +26,22 @@ export const dataService = {
       try {
         data = JSON.parse(text);
       } catch (e) {
-        console.error("Non-JSON Server Response:", text);
-        throw new Error("Institutional Error: Invalid response format from academic server.");
+        console.error("Malformed Response:", text);
+        throw new Error("Server communication error.");
       }
 
       if (!response.ok) {
         throw new Error(data.error || `System Error: ${response.status}`);
       }
 
-      // Update cache
-      if (method === 'GET' && !id) {
-        this._cache[route] = data;
-      }
-
       return data;
     } catch (error: any) {
       console.error("[DataService.request] Critical Failure:", error);
-      if (route === 'login' || route === 'db_test' || route === 'initialize_db') throw error;
-      if (method === 'GET' && !id) return this._cache[route] || [];
       throw error;
     }
   },
 
+  getBulkData: () => dataService.request('/bulk'),
   testConnection: () => dataService.request('/db_test'),
   repairDatabase: () => dataService.request('/initialize_db'),
   
@@ -69,6 +56,11 @@ export const dataService = {
   addCategory: (c: SubCategory) => dataService.request('/categories', 'POST', c),
   deleteCategory: (id: string) => dataService.request(`/categories/${id}`, 'DELETE'),
 
+  // New Topics (Sub-Category) Endpoints
+  getTopics: () => dataService.request('/topics'),
+  addTopic: (t: Topic) => dataService.request('/topics', 'POST', t),
+  deleteTopic: (id: string) => dataService.request(`/topics/${id}`, 'DELETE'),
+
   getQuizzes: () => dataService.request('/quizzes'),
   addQuiz: (q: Quiz) => dataService.request('/quizzes', 'POST', q),
   deleteQuiz: (id: string) => dataService.request(`/quizzes/${id}`, 'DELETE'),
@@ -81,9 +73,4 @@ export const dataService = {
   getQuizFeedbacks: () => dataService.request('/feedback'),
   updateQuizFeedback: (id: string, updates: Partial<QuizFeedback>) => dataService.request(`/feedback/${id}`, 'PUT', updates),
   deleteQuizFeedback: (id: string) => dataService.request(`/feedback/${id}`, 'DELETE'),
-
-  getAdmins: () => dataService.request('/admins'),
-  addAdmin: (username: string, password: string) => dataService.request('/admins', 'POST', { username, password }),
-  updateAdminPassword: (id: string, password: string) => dataService.request(`/admins/${id}`, 'PUT', { password }),
-  deleteAdmin: (id: string) => dataService.request(`/admins/${id}`, 'DELETE'),
 };

@@ -8,15 +8,17 @@ interface NavbarProps {
 
 const Navbar: React.FC<NavbarProps> = ({ onNavigate }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  // Default to 'dark' if no preference is saved
   const [theme, setTheme] = useState<'dark' | 'light'>(
-    (localStorage.getItem('theme') as 'dark' | 'light') || 'light'
+    () => (localStorage.getItem('theme') as 'dark' | 'light') || 'dark'
   );
 
   useEffect(() => {
+    const root = document.documentElement;
     if (theme === 'dark') {
-      document.documentElement.classList.add('dark');
+      root.classList.add('dark');
     } else {
-      document.documentElement.classList.remove('dark');
+      root.classList.remove('dark');
     }
     localStorage.setItem('theme', theme);
   }, [theme]);
@@ -40,7 +42,7 @@ const Navbar: React.FC<NavbarProps> = ({ onNavigate }) => {
   };
 
   return (
-    <div className="flex flex-col w-full bg-white dark:bg-pakgreen-deepest relative shadow-sm border-b border-pakgreen/10 dark:border-gold/10 transition-colors z-[100]">
+    <div className="flex flex-col w-full bg-white dark:bg-pakgreen-deepest/95 backdrop-blur-md relative shadow-sm border-b border-pakgreen/10 dark:border-gold/10 transition-colors z-[100]">
       {/* Top Info Bar */}
       <div className="bg-pakgreen dark:bg-pakgreen-dark border-b border-gold/30 hidden md:block">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 flex justify-between items-center text-[10px] font-black text-white uppercase tracking-widest">
@@ -78,9 +80,9 @@ const Navbar: React.FC<NavbarProps> = ({ onNavigate }) => {
           </div>
         </div>
 
-        {/* ARABIC INVOCATION - ENLARGED */}
+        {/* ARABIC INVOCATION */}
         <div className="flex-grow flex justify-center items-center pointer-events-none px-4">
-          <span className="hidden lg:block text-4xl xl:text-5xl font-serif font-bold text-pakgreen dark:text-gold-light opacity-90 whitespace-nowrap" style={{ direction: 'rtl' }}>
+          <span className="hidden lg:block text-4xl xl:text-5xl font-serif font-bold text-pakgreen dark:text-gold-light opacity-90 whitespace-nowrap drop-shadow-lg" style={{ direction: 'rtl' }}>
             ربِّ زِدْنِي عِلْماً
           </span>
         </div>
@@ -88,7 +90,7 @@ const Navbar: React.FC<NavbarProps> = ({ onNavigate }) => {
         <div className="flex items-center gap-2 sm:gap-4 shrink-0">
           <button 
             onClick={toggleTheme}
-            className="p-2 md:p-3 rounded-xl bg-zinc-100 dark:bg-pakgreen-dark text-pakgreen dark:text-gold-light hover:bg-gold-light dark:hover:bg-gold-light hover:text-white dark:hover:text-pakgreen transition-all border border-zinc-200 dark:border-gold/20"
+            className="p-2 md:p-3 rounded-xl bg-zinc-100 dark:bg-pakgreen-dark/50 text-pakgreen dark:text-gold-light hover:bg-gold-light dark:hover:bg-gold-light hover:text-white dark:hover:text-pakgreen transition-all border border-zinc-200 dark:border-gold/20 shadow-lg"
             aria-label="Toggle Theme"
           >
             {theme === 'dark' ? <Sun className="h-4 w-4 md:h-5 md:w-5" /> : <Moon className="h-4 w-4 md:h-5 md:w-5" />}
@@ -104,14 +106,14 @@ const Navbar: React.FC<NavbarProps> = ({ onNavigate }) => {
         </div>
       </div>
 
-      <nav className="bg-pakgreen dark:bg-pakgreen border-y border-gold/10 sticky top-0 z-50 shadow-lg hidden lg:block">
+      <nav className="bg-pakgreen dark:bg-pakgreen-dark/80 backdrop-blur-md border-y border-gold/10 sticky top-0 z-50 shadow-lg hidden lg:block">
         <div className="max-w-7xl mx-auto px-8">
           <div className="flex justify-start items-center">
             {navItems.map((item) => (
               <button 
                 key={item.label}
                 onClick={() => handleNavClick(item.view, item.subId)}
-                className="text-white/80 hover:text-gold-light hover:bg-white/5 px-6 py-4 text-[11px] font-black uppercase tracking-[0.2em] transition-all border-r border-white/10 last:border-r-0"
+                className="text-white/90 hover:text-gold-light hover:bg-white/5 px-6 py-4 text-[11px] font-black uppercase tracking-[0.2em] transition-all border-r border-white/10 last:border-r-0 hover:shadow-[0_0_20px_rgba(212,175,55,0.2)]"
               >
                 {item.label}
               </button>
@@ -124,7 +126,7 @@ const Navbar: React.FC<NavbarProps> = ({ onNavigate }) => {
       <div className={`lg:hidden fixed inset-0 z-[100] transition-all duration-300 ${isMenuOpen ? 'visible opacity-100' : 'invisible opacity-0'}`}>
         <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setIsMenuOpen(false)}></div>
         <div className={`absolute left-0 top-0 bottom-0 w-[85%] max-w-[300px] bg-white dark:bg-pakgreen-deepest shadow-2xl transition-transform duration-300 ease-out flex flex-col ${isMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-          <div className="p-8 border-b border-zinc-200 dark:border-gold/10 flex flex-col gap-6">
+          <div className="p-8 border-b border-zinc-200 dark:border-gold/10 flex flex-col gap-6 bg-zinc-50 dark:bg-pakgreen-dark/50">
              <div className="flex items-center gap-3">
                 <BookOpen className="h-6 w-6 text-pakgreen dark:text-gold-light" />
                 <span className="text-pakgreen dark:text-gold-light font-black text-sm uppercase tracking-tighter">Navigation</span>

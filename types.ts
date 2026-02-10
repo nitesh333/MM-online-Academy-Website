@@ -11,6 +11,12 @@ export interface SubCategory {
   description: string;
 }
 
+export interface Topic {
+  id: string;
+  name: string;
+  categoryId: string; // Links to SubCategory.id (e.g., 'lat')
+}
+
 export interface Question {
   id: string;
   text: string;
@@ -23,6 +29,7 @@ export interface Quiz {
   id: string;
   title: string;
   subCategoryId: string;
+  topicId?: string; // Optional link to a specific sub-category topic
   questions: Question[];
   videoUrl?: string; // Optional YouTube video link for the result page
 }
@@ -43,6 +50,7 @@ export interface StudyNote {
   title: string;
   url: string;
   subCategoryId: string;
+  topicId?: string;
   type: 'PDF' | 'Image';
 }
 

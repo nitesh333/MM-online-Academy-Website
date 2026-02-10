@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Trash2, Loader2, Database, Activity, FileText, CheckCircle2, UploadCloud, MessageSquare, Image as ImageIcon, Plus, Settings, Eye, EyeOff, LogOut, Download } from 'lucide-react';
-import { Notification, SubCategory, Quiz, Question, QuizFeedback, StudyNote } from '../types';
+import { Trash2, Loader2, Database, Activity, FileText, CheckCircle2, UploadCloud, MessageSquare, Image as ImageIcon, Plus, Settings, Eye, EyeOff, LogOut, Download, FolderTree } from 'lucide-react';
+import { Notification, SubCategory, Topic, Quiz, Question, QuizFeedback, StudyNote } from '../types';
 import { dataService } from '../services/dataService';
 import { parserService } from '../services/parserService';
 import { parseQuizFromText } from '../services/geminiService';
@@ -24,12 +24,15 @@ const AdminSelect = ({ children, className, ...props }: React.SelectHTMLAttribut
 interface AdminPanelProps {
   notifications: Notification[];
   categories: SubCategory[];
+  topics?: Topic[];
   quizzes: Quiz[];
   notes: StudyNote[];
   onAddNotification: (n: Notification) => Promise<void>;
   onDeleteNotification: (id: string) => void;
   onAddCategory: (c: SubCategory) => void;
   onDeleteCategory: (id: string) => void;
+  onAddTopic?: (t: Topic) => void;
+  onDeleteTopic?: (id: string) => void;
   onAddQuiz: (q: Quiz) => void;
   onDeleteQuiz: (id: string) => void;
   onAddNote: (n: StudyNote) => Promise<void>;
@@ -37,13 +40,14 @@ interface AdminPanelProps {
 }
 
 const AdminPanel: React.FC<AdminPanelProps> = ({ 
-  notifications, categories, quizzes, notes,
+  notifications, categories, topics = [], quizzes, notes,
   onAddNotification, onDeleteNotification,
   onAddCategory, onDeleteCategory,
+  onAddTopic = () => {}, onDeleteTopic = () => {},
   onAddQuiz, onDeleteQuiz,
   onAddNote, onDeleteNote
 }) => {
-  const [activeTab, setActiveTab] = useState<'notifications' | 'categories' | 'quizzes' | 'notes' | 'moderation' | 'account'>('notifications');
+  const [activeTab, setActiveTab] = useState<'notifications' | 'categories' | 'topics' | 'quizzes' | 'notes' | 'moderation' | 'account'>('notifications');
   const [isRepairing, setIsRepairing] = useState(false);
   const [dbStatus, setDbStatus] = useState<string>('Testing...');
   const [feedbacks, setFeedbacks] = useState<QuizFeedback[]>([]);
@@ -61,21 +65,24 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   });
 
   const [catForm, setCatForm] = useState({ name: '', description: '' });
+  const [topicForm, setTopicForm] = useState({ name: '', categoryId: '' });
 
   const [manualQuizForm, setManualQuizForm] = useState<{
     title: string;
     subCategoryId: string;
+    topicId: string;
     videoUrl: string;
     questions: { text: string; options: string[]; correctAnswer: number; explanation?: string }[];
   }>({
     title: '',
     subCategoryId: '',
+    topicId: '',
     videoUrl: '',
     questions: [{ text: '', options: ['', '', '', ''], correctAnswer: 0, explanation: '' }]
   });
 
-  const [noteForm, setNoteForm] = useState<{ title: string; subCategoryId: string; fileData: string }>({
-    title: '', subCategoryId: '', fileData: ''
+  const [noteForm, setNoteForm] = useState<{ title: string; subCategoryId: string; topicId: string; fileData: string }>({
+    title: '', subCategoryId: '', topicId: '', fileData: ''
   });
   const [isUploadingNote, setIsUploadingNote] = useState(false);
   const noteFileRef = useRef<HTMLInputElement>(null);
@@ -84,6 +91,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     if (categories.length > 0) {
       if (!manualQuizForm.subCategoryId) setManualQuizForm(prev => ({ ...prev, subCategoryId: categories[0].id }));
       if (!noteForm.subCategoryId) setNoteForm(prev => ({ ...prev, subCategoryId: categories[0].id }));
+      if (!topicForm.categoryId) setTopicForm(prev => ({ ...prev, categoryId: categories[0].id }));
     }
   }, [categories]);
 
@@ -165,10 +173,11 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
 
   return (
     <div className="bg-slate-900 rounded-2xl border border-slate-800 min-h-[600px] flex flex-col shadow-2xl overflow-hidden">
-      <div className="flex bg-slate-950/50 border-b border-slate-800 overflow-x-auto no-scrollbar">
+      <div className="flex bg-slate-950/50 border-b border-slate-800 overflow-x-auto">
         {[
           { id: 'notifications', label: 'News Management' },
           { id: 'categories', label: 'Categories' },
+          { id: 'topics', label: 'Sub-Categories' },
           { id: 'quizzes', label: 'Assessments' },
           { id: 'notes', label: 'Study Materials' },
           { id: 'moderation', label: 'Reviews' },
@@ -177,7 +186,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
           <button 
             key={tab.id} 
             onClick={() => setActiveTab(tab.id as any)} 
-            className={`px-8 py-4 font-black text-[10px] uppercase tracking-widest border-b-2 transition-all whitespace-nowrap ${activeTab === tab.id ? 'border-gold text-gold bg-slate-900' : 'border-transparent text-slate-500 hover:text-slate-300'}`}
+            className={`px-6 py-4 font-black text-[10px] uppercase tracking-widest border-b-2 transition-all whitespace-nowrap shrink-0 ${activeTab === tab.id ? 'border-gold text-gold bg-slate-900' : 'border-transparent text-slate-500 hover:text-slate-300'}`}
           >
             {tab.label}
           </button>
@@ -249,6 +258,34 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
           </div>
         )}
 
+        {activeTab === 'topics' && (
+          <div className="space-y-8 animate-in fade-in">
+             <form onSubmit={(e) => {
+               e.preventDefault();
+               onAddTopic({ id: `topic_${Date.now()}`, ...topicForm });
+               setTopicForm({ name: '', categoryId: categories[0]?.id || '' });
+             }} className="bg-slate-800/30 p-6 rounded-xl border border-slate-700 space-y-4">
+               <h4 className="text-white font-black text-xs uppercase">Create Sub-Category</h4>
+               <AdminSelect value={topicForm.categoryId} onChange={e => setTopicForm({...topicForm, categoryId: e.target.value})}>
+                 {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+               </AdminSelect>
+               <AdminInput value={topicForm.name} onChange={e => setTopicForm({...topicForm, name: e.target.value})} placeholder="Sub-Category Name (e.g. English, Math)" required />
+               <button type="submit" className="bg-emerald-600 hover:bg-emerald-500 text-white px-10 py-3 rounded font-black text-[10px] uppercase flex items-center gap-2"><FolderTree className="h-4 w-4" /> Add Sub-Category</button>
+             </form>
+             <div className="divide-y divide-slate-800">
+               {topics.map(t => (
+                 <div key={t.id} className="py-4 flex justify-between items-center group">
+                   <div>
+                     <h5 className="text-white font-bold text-sm uppercase">{t.name}</h5>
+                     <p className="text-[9px] text-slate-500 font-black uppercase">Under: {categories.find(c => c.id === t.categoryId)?.name || 'Unknown'}</p>
+                   </div>
+                   <button onClick={() => onDeleteTopic(t.id)} className="text-slate-600 hover:text-rose-500"><Trash2 className="h-4 w-4" /></button>
+                 </div>
+               ))}
+             </div>
+          </div>
+        )}
+
         {activeTab === 'quizzes' && (
           <div className="space-y-10 animate-in fade-in">
             <div className="bg-slate-800/40 border-2 border-dashed border-slate-700 rounded-3xl p-10 text-center hover:border-blue-500 transition-all">
@@ -267,17 +304,30 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                 id: `q_${Date.now()}`, 
                 title: manualQuizForm.title,
                 subCategoryId: manualQuizForm.subCategoryId,
+                topicId: manualQuizForm.topicId,
                 videoUrl: manualQuizForm.videoUrl,
                 questions: manualQuizForm.questions.map((q, i) => ({ id: `qi_${i}_${Date.now()}`, ...q })) 
               });
-              setManualQuizForm({ title: '', subCategoryId: categories[0]?.id || '', videoUrl: '', questions: [{ text: '', options: ['', '', '', ''], correctAnswer: 0 }] });
+              setManualQuizForm({ title: '', subCategoryId: categories[0]?.id || '', topicId: '', videoUrl: '', questions: [{ text: '', options: ['', '', '', ''], correctAnswer: 0 }] });
               alert("Published Successfully.");
             }} className="bg-slate-800/30 p-8 rounded-2xl border border-slate-700 space-y-6">
-               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <AdminInput value={manualQuizForm.title} onChange={e => setManualQuizForm({...manualQuizForm, title: e.target.value})} placeholder="Title" required />
-                  <AdminSelect value={manualQuizForm.subCategoryId} onChange={e => setManualQuizForm({...manualQuizForm, subCategoryId: e.target.value})}>
-                    {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                  </AdminSelect>
+                  <div className="space-y-1">
+                    <label className="text-[9px] text-slate-400 font-bold uppercase">Main Category</label>
+                    <AdminSelect value={manualQuizForm.subCategoryId} onChange={e => setManualQuizForm({...manualQuizForm, subCategoryId: e.target.value, topicId: ''})}>
+                      {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </AdminSelect>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[9px] text-slate-400 font-bold uppercase">Sub-Category (Topic)</label>
+                    <AdminSelect value={manualQuizForm.topicId} onChange={e => setManualQuizForm({...manualQuizForm, topicId: e.target.value})}>
+                      <option value="">-- General / None --</option>
+                      {topics.filter(t => t.categoryId === manualQuizForm.subCategoryId).map(t => (
+                        <option key={t.id} value={t.id}>{t.name}</option>
+                      ))}
+                    </AdminSelect>
+                  </div>
                </div>
                <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
                   {manualQuizForm.questions.map((q, idx) => (
@@ -300,7 +350,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                     <div className="flex-grow">
                       <h5 className="text-white font-bold text-sm uppercase">{q.title}</h5>
                       <p className="text-[9px] text-slate-500 font-black uppercase">
-                        {categories.find(c => c.id === q.subCategoryId)?.name || 'Track'} • {q.questions?.length || 0} Items
+                        {categories.find(c => c.id === q.subCategoryId)?.name || 'Track'} 
+                        {q.topicId ? ` / ${topics.find(t => t.id === q.topicId)?.name}` : ''} • {q.questions?.length || 0} Items
                       </p>
                     </div>
                     <button onClick={() => onDeleteQuiz(q.id)} className="text-slate-600 hover:text-rose-500 p-2 opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 className="h-4 w-4" /></button>
@@ -322,20 +373,33 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                    id: `note_${Date.now()}`,
                    title: noteForm.title,
                    subCategoryId: noteForm.subCategoryId,
+                   topicId: noteForm.topicId,
                    url: noteForm.fileData,
                    type: 'PDF'
                  });
-                 setNoteForm({ title: '', subCategoryId: categories[0]?.id || '', fileData: '' });
+                 setNoteForm({ title: '', subCategoryId: categories[0]?.id || '', topicId: '', fileData: '' });
                  if (noteFileRef.current) noteFileRef.current.value = '';
                  alert("Note Uploaded.");
                } catch (err) { alert("Failed to upload note."); }
                finally { setIsUploadingNote(false); }
              }} className="bg-slate-800/30 p-8 rounded-2xl border border-slate-700 space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                    <AdminInput value={noteForm.title} onChange={e => setNoteForm({...noteForm, title: e.target.value})} placeholder="Note Title" required />
-                   <AdminSelect value={noteForm.subCategoryId} onChange={e => setNoteForm({...noteForm, subCategoryId: e.target.value})}>
-                      {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                   </AdminSelect>
+                   <div className="space-y-1">
+                     <label className="text-[9px] text-slate-400 font-bold uppercase">Main Category</label>
+                     <AdminSelect value={noteForm.subCategoryId} onChange={e => setNoteForm({...noteForm, subCategoryId: e.target.value, topicId: ''})}>
+                        {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                     </AdminSelect>
+                   </div>
+                   <div className="space-y-1">
+                     <label className="text-[9px] text-slate-400 font-bold uppercase">Sub-Category</label>
+                     <AdminSelect value={noteForm.topicId} onChange={e => setNoteForm({...noteForm, topicId: e.target.value})}>
+                        <option value="">-- General --</option>
+                        {topics.filter(t => t.categoryId === noteForm.subCategoryId).map(t => (
+                          <option key={t.id} value={t.id}>{t.name}</option>
+                        ))}
+                     </AdminSelect>
+                   </div>
                 </div>
                 <div className="flex items-center gap-4">
                    <button type="button" onClick={() => noteFileRef.current?.click()} className="px-6 py-3 bg-slate-700 hover:bg-slate-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg">Select PDF Note</button>
@@ -356,6 +420,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                             <h5 className="text-white font-bold text-sm uppercase truncate">{n.title}</h5>
                             <p className="text-[9px] text-slate-500 font-black uppercase">
                                {categories.find(c => c.id === n.subCategoryId)?.name || 'General'}
+                               {n.topicId ? ` / ${topics.find(t => t.id === n.topicId)?.name}` : ''}
                             </p>
                          </div>
                          <div className="flex items-center gap-3">
@@ -377,7 +442,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                  return (
                  <div key={f.id} className={`p-6 rounded-2xl border transition-all ${isVis ? 'bg-emerald-500/5 border-emerald-500/20' : 'bg-slate-800/30 border-slate-700'} flex justify-between items-center`}>
                     <div className="flex-grow min-w-0">
-                       <div className="flex items-center gap-2 mb-2"><span className="text-white font-black text-xs uppercase truncate">{f.studentName}</span></div>
+                       <div className="flex items-center gap-2 mb-2"><span className="text-white font-black text-xs uppercase truncate">{f.studentName}</span> <span className="text-slate-600 text-[9px]">({f.quizTitle})</span></div>
                        <p className="text-slate-400 text-[11px] italic">"{f.comment}"</p>
                     </div>
                     <div className="flex items-center gap-3">
