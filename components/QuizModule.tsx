@@ -1,5 +1,6 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
-import { CheckCircle, RefreshCw, MessageSquare, Send, Star, Info, ChevronRight, Youtube, ExternalLink } from 'lucide-react';
+import { CheckCircle, RefreshCw, MessageSquare, Send, Star, Info, ChevronRight, Youtube, ExternalLink, Lightbulb } from 'lucide-react';
 import { Quiz, QuizFeedback, SubCategory, Question } from '../types';
 import { dataService } from '../services/dataService';
 import AdSlot from './AdBanner';
@@ -17,19 +18,38 @@ const QuizModule: React.FC<QuizModuleProps> = ({ quiz, categories, onComplete })
   const [isFinished, setIsFinished] = useState(false);
   const [correctCount, setCorrectCount] = useState(0);
   
-  // Feedback Form State
   const [feedbackSent, setFeedbackSent] = useState(false);
   const [feedbackForm, setFeedbackForm] = useState({ name: '', email: '', comment: '' });
 
   const initQuiz = useCallback(() => {
+    // 1. HARD GUARD: If no questions, stop immediately to prevent array length errors
+    if (!quiz || !quiz.questions || !Array.isArray(quiz.questions) || quiz.questions.length === 0) {
+      setShuffledQuestions([]);
+      setAnswers([]);
+      return;
+    }
+
     const randomized = quiz.questions.map(q => {
-      const originalCorrectText = q.options[q.correctAnswer];
-      const shuffledOptions = [...q.options].sort(() => Math.random() - 0.5);
-      const newCorrectIndex = shuffledOptions.indexOf(originalCorrectText);
+      // 2. OPTIONS GUARD: Ensure options array is valid
+      const options = (q.options && Array.isArray(q.options) && q.options.length > 0) 
+        ? q.options 
+        : ['A', 'B', 'C', 'D'];
+      
+      const originalCorrectText = options[q.correctAnswer] || options[0];
+      
+      const shuffledOptions = [...options].sort(() => Math.random() - 0.5);
+      const newCorrectIndex = Math.max(0, shuffledOptions.indexOf(originalCorrectText));
+      
       return { ...q, options: shuffledOptions, correctAnswer: newCorrectIndex };
     });
+
+    // 3. CRITICAL RANGE FIX: Ensure qCount is always a safe, non-negative integer
+    const qCount = Math.max(0, Math.floor(randomized.length || 0));
+    
     setShuffledQuestions(randomized);
-    setAnswers(new Array(randomized.length).fill(null));
+    // Use a conditional check before creating the array
+    setAnswers(qCount > 0 ? new Array(qCount).fill(null) : []);
+    
     setCurrentQuestionIndex(0);
     setCorrectCount(0);
     setIsFinished(false);
@@ -57,9 +77,17 @@ const QuizModule: React.FC<QuizModuleProps> = ({ quiz, categories, onComplete })
     } catch (err) { alert('Failed to send feedback.'); }
   };
 
-  const percentage = Math.round((correctCount / shuffledQuestions.length) * 100);
+  const percentage = shuffledQuestions.length > 0 ? Math.round((correctCount / shuffledQuestions.length) * 100) : 0;
 
-  if (shuffledQuestions.length === 0) return null;
+  if (shuffledQuestions.length === 0) {
+    return (
+      <div className="max-w-4xl mx-auto py-20 text-center">
+        <RefreshCw className="h-12 w-12 text-gold animate-spin mx-auto mb-4" />
+        <p className="text-zinc-500 dark:text-zinc-400 font-black uppercase tracking-widest text-xs">Preparing Academic Track...</p>
+        <button onClick={() => window.location.hash = '#home'} className="mt-8 text-gold-light font-black uppercase text-[10px] tracking-widest hover:underline">Return to Home</button>
+      </div>
+    );
+  }
 
   if (isFinished) {
     return (
@@ -86,7 +114,6 @@ const QuizModule: React.FC<QuizModuleProps> = ({ quiz, categories, onComplete })
                </a>
             </div>
 
-            {/* FEEDBACK FORM - High Contrast Version */}
             {!feedbackSent ? (
               <div className="mb-12 text-left bg-white p-8 rounded-[32px] border-4 border-gold/10 shadow-xl">
                 <form onSubmit={handleFeedbackSubmit}>
@@ -128,6 +155,8 @@ const QuizModule: React.FC<QuizModuleProps> = ({ quiz, categories, onComplete })
   }
 
   const currentQuestion = shuffledQuestions[currentQuestionIndex];
+  if (!currentQuestion) return null;
+
   const selectedAnswer = answers[currentQuestionIndex];
 
   return (
@@ -166,12 +195,26 @@ const QuizModule: React.FC<QuizModuleProps> = ({ quiz, categories, onComplete })
             );
           })}
         </div>
+        
         {selectedAnswer !== null && (
-          <div className="mt-14 flex flex-col items-center">
+          <div className="mt-14 flex flex-col items-center w-full space-y-8">
+            
+            {/* EXPLANATION BOX */}
+            {currentQuestion.explanation && currentQuestion.explanation.trim().length > 3 && (
+              <div className="w-full text-left p-8 bg-blue-50 dark:bg-blue-900/20 border-l-8 border-blue-500 rounded-r-3xl animate-in fade-in slide-in-from-top-6 shadow-lg">
+                 <h4 className="flex items-center gap-3 text-blue-600 dark:text-blue-400 font-black uppercase text-sm tracking-widest mb-4">
+                   <Lightbulb className="h-6 w-6 fill-current animate-pulse" /> Academy Explanation
+                 </h4>
+                 <p className="text-zinc-700 dark:text-zinc-200 text-sm font-bold leading-relaxed">
+                   {currentQuestion.explanation}
+                 </p>
+              </div>
+            )}
+
             <button onClick={() => {
                 if (currentQuestionIndex < shuffledQuestions.length - 1) setCurrentQuestionIndex(i => i + 1);
                 else setIsFinished(true);
-              }} className="bg-pakgreen dark:bg-gold-light text-white dark:text-pakgreen px-12 py-6 rounded-2xl font-black uppercase text-[11px] tracking-[0.3em] shadow-2xl">
+              }} className="bg-pakgreen dark:bg-gold-light text-white dark:text-pakgreen px-12 py-6 rounded-2xl font-black uppercase text-[11px] tracking-[0.3em] shadow-2xl transition-transform hover:scale-105">
               {currentQuestionIndex === shuffledQuestions.length - 1 ? 'View Result' : 'Next Question'}
             </button>
           </div>

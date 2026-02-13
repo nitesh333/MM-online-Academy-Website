@@ -32,6 +32,7 @@ export interface Quiz {
   topicId?: string; // Optional link to a specific sub-category topic
   questions: Question[];
   videoUrl?: string; // Optional YouTube video link for the result page
+  orderNumber?: number; // Numerical order for series arrangement
 }
 
 export interface QuizFeedback {

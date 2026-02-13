@@ -1,7 +1,6 @@
 <?php
 /**
- * Professional Academy Backend API - Sub-Category & Feedback Update v19
- * Hardcoded Master Login: mmonlineacademy26@gmail.com / mmacademy
+ * Professional Academy Backend API - Series Arrangement Update
  */
 
 header("Access-Control-Allow-Origin: *");
@@ -23,9 +22,20 @@ try {
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC
     ]);
     $conn->exec("set names utf8mb4"); 
+    
+    // AUTO-MIGRATION
+    $conn->exec("CREATE TABLE IF NOT EXISTS topics (id VARCHAR(50) PRIMARY KEY, name VARCHAR(100), categoryId VARCHAR(50))");
+    $conn->exec("CREATE TABLE IF NOT EXISTS categories (id VARCHAR(50) PRIMARY KEY, name VARCHAR(100), description TEXT)");
+    $conn->exec("CREATE TABLE IF NOT EXISTS feedback (id VARCHAR(50) PRIMARY KEY, quizId VARCHAR(50), quizTitle VARCHAR(255), studentName VARCHAR(100), studentEmail VARCHAR(100), comment TEXT, date VARCHAR(20), isVisible TINYINT(1) DEFAULT 0)");
+    
+    // Ensure orderNumber column exists
+    try { $conn->exec("ALTER TABLE quizzes ADD COLUMN orderNumber INT DEFAULT 0"); } catch(Exception $e) {}
+    try { $conn->exec("ALTER TABLE quizzes ADD COLUMN topicId VARCHAR(50)"); } catch(Exception $e) {}
+    try { $conn->exec("ALTER TABLE notes ADD COLUMN topicId VARCHAR(50)"); } catch(Exception $e) {}
+
 } catch(PDOException $e) {
     http_response_code(500);
-    echo json_encode(["success" => false, "error" => "DB_CONNECTION_FAILED"]);
+    echo json_encode(["success" => false, "error" => "DB_CONNECTION_FAILED: " . $e->getMessage()]);
     exit;
 }
 
@@ -35,21 +45,13 @@ $route = $requestData['route'] ?? '';
 $id = $requestData['id'] ?? '';
 $method = $_SERVER['REQUEST_METHOD'];
 
-// 1. SYSTEM INITIALIZATION
 if ($route === 'initialize_db' || $route === 'db_test') {
     try {
         $conn->exec("CREATE TABLE IF NOT EXISTS admins (id INT AUTO_INCREMENT PRIMARY KEY, username VARCHAR(100) NOT NULL UNIQUE, password VARCHAR(255) NOT NULL)");
         $conn->exec("CREATE TABLE IF NOT EXISTS notifications (id VARCHAR(50) PRIMARY KEY, title VARCHAR(255), date VARCHAR(20), content TEXT, type VARCHAR(50), attachmentUrl LONGTEXT, linkedQuizId VARCHAR(50))");
-        $conn->exec("CREATE TABLE IF NOT EXISTS categories (id VARCHAR(50) PRIMARY KEY, name VARCHAR(100), description TEXT)");
-        $conn->exec("CREATE TABLE IF NOT EXISTS topics (id VARCHAR(50) PRIMARY KEY, name VARCHAR(100), categoryId VARCHAR(50))");
-        $conn->exec("CREATE TABLE IF NOT EXISTS quizzes (id VARCHAR(50) PRIMARY KEY, title VARCHAR(255), subCategoryId VARCHAR(50), topicId VARCHAR(50), questions LONGTEXT, videoUrl VARCHAR(255))");
+        $conn->exec("CREATE TABLE IF NOT EXISTS quizzes (id VARCHAR(50) PRIMARY KEY, title VARCHAR(255), subCategoryId VARCHAR(50), topicId VARCHAR(50), orderNumber INT DEFAULT 0, questions LONGTEXT, videoUrl VARCHAR(255))");
         $conn->exec("CREATE TABLE IF NOT EXISTS notes (id VARCHAR(50) PRIMARY KEY, title VARCHAR(255), url LONGTEXT, subCategoryId VARCHAR(50), topicId VARCHAR(50), type VARCHAR(20))");
-        $conn->exec("CREATE TABLE IF NOT EXISTS feedback (id VARCHAR(50) PRIMARY KEY, quizId VARCHAR(50), quizTitle VARCHAR(255), studentName VARCHAR(100), studentEmail VARCHAR(100), comment TEXT, date VARCHAR(20), isVisible TINYINT(1) DEFAULT 0)");
         
-        // Auto-migration for new columns (Safe to run multiple times)
-        try { $conn->exec("ALTER TABLE quizzes ADD COLUMN topicId VARCHAR(50)"); } catch(Exception $e) {}
-        try { $conn->exec("ALTER TABLE notes ADD COLUMN topicId VARCHAR(50)"); } catch(Exception $e) {}
-
         $stmt = $conn->prepare("REPLACE INTO admins (id, username, password) VALUES (1, 'mmonlineacademy26@gmail.com', 'mmacademy')");
         $stmt->execute();
         
@@ -61,25 +63,26 @@ if ($route === 'initialize_db' || $route === 'db_test') {
     }
 }
 
-// 2. BULK AGGREGATOR
 if ($route === 'bulk' && $method === 'GET') {
-    $res = [
-        'notifications' => $conn->query("SELECT * FROM notifications ORDER BY id DESC")->fetchAll() ?: [],
-        'categories' => $conn->query("SELECT * FROM categories")->fetchAll() ?: [],
-        'topics' => $conn->query("SELECT * FROM topics")->fetchAll() ?: [],
-        'quizzes' => $conn->query("SELECT * FROM quizzes ORDER BY id DESC")->fetchAll() ?: [],
-        'notes' => $conn->query("SELECT * FROM notes ORDER BY id DESC")->fetchAll() ?: []
-    ];
-    // Decode questions for React
-    foreach($res['quizzes'] as &$q) { 
-        $decoded = json_decode($q['questions'] ?? '[]', true);
-        $q['questions'] = is_array($decoded) ? $decoded : [];
+    try {
+        $res = [
+            'notifications' => $conn->query("SELECT * FROM notifications ORDER BY id DESC")->fetchAll() ?: [],
+            'categories' => $conn->query("SELECT * FROM categories")->fetchAll() ?: [],
+            'topics' => $conn->query("SELECT * FROM topics")->fetchAll() ?: [],
+            'quizzes' => $conn->query("SELECT * FROM quizzes ORDER BY orderNumber ASC, id DESC")->fetchAll() ?: [],
+            'notes' => $conn->query("SELECT * FROM notes ORDER BY id DESC")->fetchAll() ?: []
+        ];
+        foreach($res['quizzes'] as &$q) { 
+            $decoded = json_decode($q['questions'] ?? '[]', true);
+            $q['questions'] = is_array($decoded) ? $decoded : [];
+        }
+        echo json_encode($res);
+    } catch (Exception $e) {
+        echo json_encode(['notifications'=>[], 'categories'=>[], 'topics'=>[], 'quizzes'=>[], 'notes'=>[]]);
     }
-    echo json_encode($res);
     exit;
 }
 
-// 3. CORE CRUD
 $mapping = ['notifications' => 'notifications', 'categories' => 'categories', 'topics' => 'topics', 'quizzes' => 'quizzes', 'notes' => 'notes', 'feedback' => 'feedback', 'login' => 'admins'];
 $table = $mapping[$route] ?? null;
 
@@ -90,7 +93,11 @@ if (!$table) {
 
 try {
     if ($method === 'GET') {
-        $stmt = $id ? $conn->prepare("SELECT * FROM $table WHERE id = ?") : $conn->prepare("SELECT * FROM $table ORDER BY id DESC");
+        if ($table === 'quizzes') {
+            $stmt = $id ? $conn->prepare("SELECT * FROM quizzes WHERE id = ?") : $conn->prepare("SELECT * FROM quizzes ORDER BY orderNumber ASC, id DESC");
+        } else {
+            $stmt = $id ? $conn->prepare("SELECT * FROM $table WHERE id = ?") : $conn->prepare("SELECT * FROM $table ORDER BY id DESC");
+        }
         $id ? $stmt->execute([$id]) : $stmt->execute();
         $output = $id ? $stmt->fetch() : $stmt->fetchAll();
         if ($table === 'quizzes') {
@@ -103,8 +110,8 @@ try {
             $stmt->execute([strtolower($requestData['username']), $requestData['password']]);
             $output = $stmt->fetch() ? ["success" => true] : ["success" => false, "error" => "LOGIN_FAILED"];
         } elseif ($table === 'quizzes') {
-            $stmt = $conn->prepare("REPLACE INTO quizzes (id, title, subCategoryId, topicId, questions, videoUrl) VALUES (?, ?, ?, ?, ?, ?)");
-            $stmt->execute([$requestData['id'], $requestData['title'], $requestData['subCategoryId'], $requestData['topicId'] ?? '', json_encode($requestData['questions']), $requestData['videoUrl'] ?? '']);
+            $stmt = $conn->prepare("REPLACE INTO quizzes (id, title, subCategoryId, topicId, orderNumber, questions, videoUrl) VALUES (?, ?, ?, ?, ?, ?, ?)");
+            $stmt->execute([$requestData['id'], $requestData['title'], $requestData['subCategoryId'], $requestData['topicId'] ?? '', (int)($requestData['orderNumber'] ?? 0), json_encode($requestData['questions']), $requestData['videoUrl'] ?? '']);
             $output = ["success" => true];
         } elseif ($table === 'notes') {
             $stmt = $conn->prepare("REPLACE INTO notes (id, title, url, subCategoryId, topicId, type) VALUES (?, ?, ?, ?, ?, ?)");
@@ -112,6 +119,7 @@ try {
             $output = ["success" => true];
         } else {
             unset($requestData['route']);
+            unset($requestData['_t']);
             $cols = implode(',', array_keys($requestData));
             $p = implode(',', array_fill(0, count($requestData), '?'));
             $stmt = $conn->prepare("REPLACE INTO $table ($cols) VALUES ($p)");

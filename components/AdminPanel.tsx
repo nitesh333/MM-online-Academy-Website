@@ -1,5 +1,6 @@
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Trash2, Loader2, Database, Activity, FileText, CheckCircle2, UploadCloud, MessageSquare, Image as ImageIcon, Plus, Settings, Eye, EyeOff, LogOut, Download, FolderTree } from 'lucide-react';
+import { Trash2, Loader2, Database, Activity, FileText, CheckCircle2, UploadCloud, MessageSquare, Image as ImageIcon, Plus, Settings, Eye, EyeOff, LogOut, Download, FolderTree, ListOrdered, Edit3, XCircle, Trash, Type as TypeIcon, Sparkles } from 'lucide-react';
 import { Notification, SubCategory, Topic, Quiz, Question, QuizFeedback, StudyNote } from '../types';
 import { dataService } from '../services/dataService';
 import { parserService } from '../services/parserService';
@@ -51,10 +52,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   const [isRepairing, setIsRepairing] = useState(false);
   const [dbStatus, setDbStatus] = useState<string>('Testing...');
   const [feedbacks, setFeedbacks] = useState<QuizFeedback[]>([]);
+  const [isAddingTopic, setIsAddingTopic] = useState(false);
   
   const [isParsing, setIsParsing] = useState(false);
   const [parsingStep, setParsingStep] = useState<string>('');
-  const [parsedQuestions, setParsedQuestions] = useState<Partial<Question>[]>([]);
   const [parseError, setParseError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
@@ -67,16 +68,20 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   const [catForm, setCatForm] = useState({ name: '', description: '' });
   const [topicForm, setTopicForm] = useState({ name: '', categoryId: '' });
 
+  // Quiz Form State
+  const [editingQuizId, setEditingQuizId] = useState<string | null>(null);
   const [manualQuizForm, setManualQuizForm] = useState<{
     title: string;
     subCategoryId: string;
     topicId: string;
+    orderNumber: number;
     videoUrl: string;
     questions: { text: string; options: string[]; correctAnswer: number; explanation?: string }[];
   }>({
     title: '',
     subCategoryId: '',
     topicId: '',
+    orderNumber: 0,
     videoUrl: '',
     questions: [{ text: '', options: ['', '', '', ''], correctAnswer: 0, explanation: '' }]
   });
@@ -130,19 +135,89 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     setParsingStep('Reading...');
     try {
       const text = await parserService.extractTextFromFile(file);
-      setParsingStep('Extracting...');
-      const aiResults = await parseQuizFromText(text);
-      if (aiResults.length === 0) {
-        const fbResults = parserService.parseMCQs(text);
-        if (fbResults.length === 0) throw new Error("No items found.");
-        setParsedQuestions(fbResults);
-        populateQuizForm(fbResults);
-      } else {
-        setParsedQuestions(aiResults);
-        populateQuizForm(aiResults);
-      }
+      await processContent(text);
     } catch (err: any) { setParseError(err.message); }
     finally { setIsParsing(false); setParsingStep(''); if (fileInputRef.current) fileInputRef.current.value = ''; }
+  };
+
+  const processContent = async (text: string) => {
+    setParsingStep('Extracting MCQs...');
+    const aiResults = await parseQuizFromText(text);
+    if (aiResults.length === 0) {
+      const fbResults = parserService.parseMCQs(text);
+      if (fbResults.length === 0) throw new Error("No items found. Please check your document format.");
+      populateQuizForm(fbResults);
+    } else {
+      populateQuizForm(aiResults);
+    }
+  };
+
+  const populateQuizForm = (qs: Partial<Question>[]) => {
+    // Utility to double-check text is clean
+    const clean = (s: string) => s.replace(/\*\*/g, '').replace(/[✅✔️☑️]/g, '').replace(/^[A-D][\.\)\s]+/i, '').trim();
+
+    setManualQuizForm(prev => ({ 
+      ...prev, 
+      questions: qs.map(q => ({
+        text: q.text ? clean(q.text) : '',
+        options: q.options && q.options.length >= 4 
+          ? q.options.map(o => clean(o)).slice(0, 4) 
+          : ['', '', '', ''],
+        correctAnswer: q.correctAnswer !== undefined ? q.correctAnswer : 0,
+        explanation: q.explanation ? clean(q.explanation) : ''
+      }))
+    }));
+  };
+
+  const startEditingQuiz = (quiz: Quiz) => {
+    setEditingQuizId(quiz.id);
+    setManualQuizForm({
+      title: quiz.title,
+      subCategoryId: quiz.subCategoryId,
+      topicId: quiz.topicId || '',
+      orderNumber: quiz.orderNumber || 0,
+      videoUrl: quiz.videoUrl || '',
+      questions: quiz.questions.map(q => ({
+        text: q.text,
+        options: [...q.options],
+        correctAnswer: q.correctAnswer,
+        explanation: q.explanation || ''
+      }))
+    });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const cancelEditing = () => {
+    setEditingQuizId(null);
+    setManualQuizForm({ 
+      title: '', 
+      subCategoryId: categories[0]?.id || '', 
+      topicId: '', 
+      orderNumber: 0, 
+      videoUrl: '', 
+      questions: [{ text: '', options: ['', '', '', ''], correctAnswer: 0, explanation: '' }] 
+    });
+  };
+
+  const addManualQuestion = () => {
+    setManualQuizForm(prev => ({
+      ...prev,
+      questions: [...prev.questions, { text: '', options: ['', '', '', ''], correctAnswer: 0, explanation: '' }]
+    }));
+  };
+
+  const removeManualQuestion = (index: number) => {
+    if (manualQuizForm.questions.length <= 1) return;
+    setManualQuizForm(prev => ({
+      ...prev,
+      questions: prev.questions.filter((_, i) => i !== index)
+    }));
+  };
+
+  const toggleFeedback = async (fb: QuizFeedback) => {
+    const vis = fb.isVisible === true || String(fb.isVisible) === '1';
+    await dataService.updateQuizFeedback(fb.id, { isVisible: !vis });
+    loadFeedbacks();
   };
 
   const handleNoteFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -151,24 +226,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     const reader = new FileReader();
     reader.onload = (event) => setNoteForm(prev => ({ ...prev, fileData: event.target?.result as string }));
     reader.readAsDataURL(file);
-  };
-
-  const populateQuizForm = (qs: Partial<Question>[]) => {
-    setManualQuizForm(prev => ({ 
-      ...prev, 
-      questions: qs.map(q => ({
-        text: q.text || '',
-        options: q.options && q.options.length >= 4 ? q.options.slice(0, 4) : ['', '', '', ''],
-        correctAnswer: q.correctAnswer !== undefined ? q.correctAnswer : 0,
-        explanation: q.explanation || ''
-      }))
-    }));
-  };
-
-  const toggleFeedback = async (fb: QuizFeedback) => {
-    const vis = fb.isVisible === true || String(fb.isVisible) === '1';
-    await dataService.updateQuizFeedback(fb.id, { isVisible: !vis });
-    loadFeedbacks();
   };
 
   return (
@@ -260,20 +317,27 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
 
         {activeTab === 'topics' && (
           <div className="space-y-8 animate-in fade-in">
-             <form onSubmit={(e) => {
+             <form onSubmit={async (e) => {
                e.preventDefault();
-               onAddTopic({ id: `topic_${Date.now()}`, ...topicForm });
-               setTopicForm({ name: '', categoryId: categories[0]?.id || '' });
+               setIsAddingTopic(true);
+               try {
+                 await onAddTopic({ id: `topic_${Date.now()}`, ...topicForm });
+                 setTopicForm({ name: '', categoryId: categories[0]?.id || '' });
+                 alert("Sub-Category Added Successfully.");
+               } catch (err) { alert("Error adding sub-category."); }
+               finally { setIsAddingTopic(false); }
              }} className="bg-slate-800/30 p-6 rounded-xl border border-slate-700 space-y-4">
                <h4 className="text-white font-black text-xs uppercase">Create Sub-Category</h4>
                <AdminSelect value={topicForm.categoryId} onChange={e => setTopicForm({...topicForm, categoryId: e.target.value})}>
                  {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                </AdminSelect>
                <AdminInput value={topicForm.name} onChange={e => setTopicForm({...topicForm, name: e.target.value})} placeholder="Sub-Category Name (e.g. English, Math)" required />
-               <button type="submit" className="bg-emerald-600 hover:bg-emerald-500 text-white px-10 py-3 rounded font-black text-[10px] uppercase flex items-center gap-2"><FolderTree className="h-4 w-4" /> Add Sub-Category</button>
+               <button type="submit" disabled={isAddingTopic} className="bg-emerald-600 hover:bg-emerald-500 text-white px-10 py-3 rounded font-black text-[10px] uppercase flex items-center gap-2">
+                 {isAddingTopic ? <Loader2 className="h-4 w-4 animate-spin" /> : <FolderTree className="h-4 w-4" />} Add Sub-Category
+               </button>
              </form>
              <div className="divide-y divide-slate-800">
-               {topics.map(t => (
+               {topics.length > 0 ? topics.map(t => (
                  <div key={t.id} className="py-4 flex justify-between items-center group">
                    <div>
                      <h5 className="text-white font-bold text-sm uppercase">{t.name}</h5>
@@ -281,46 +345,81 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                    </div>
                    <button onClick={() => onDeleteTopic(t.id)} className="text-slate-600 hover:text-rose-500"><Trash2 className="h-4 w-4" /></button>
                  </div>
-               ))}
+               )) : <p className="text-slate-500 text-[10px] font-black uppercase py-4">No Sub-Categories defined.</p>}
              </div>
           </div>
         )}
 
         {activeTab === 'quizzes' && (
           <div className="space-y-10 animate-in fade-in">
-            <div className="bg-slate-800/40 border-2 border-dashed border-slate-700 rounded-3xl p-10 text-center hover:border-blue-500 transition-all">
-              <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" accept=".pdf,.docx" />
-              <UploadCloud className="h-12 w-12 text-slate-600 mx-auto mb-4" />
-              <h3 className="text-white font-black text-lg uppercase mb-2">Automated Assessment Engine</h3>
-              <button onClick={() => fileInputRef.current?.click()} disabled={isParsing} className="bg-blue-600 hover:bg-blue-500 text-white px-12 py-3 rounded-xl font-black text-[10px] uppercase shadow-xl transition-all">
-                {isParsing ? <><Loader2 className="h-4 w-4 animate-spin inline mr-2" />{parsingStep}</> : "Upload Document"}
-              </button>
-              {parseError && <p className="mt-2 text-rose-500 text-[10px] font-black uppercase">{parseError}</p>}
-            </div>
+            {!editingQuizId && (
+              <div className="bg-slate-800/40 border-2 border-slate-700 rounded-3xl p-8 transition-all">
+                <div className="text-center py-6 border-2 border-dashed border-slate-700 rounded-2xl hover:border-blue-500 transition-colors">
+                  <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" accept=".pdf,.docx" />
+                  <UploadCloud className="h-12 w-12 text-slate-600 mx-auto mb-4" />
+                  <h3 className="text-white font-black text-sm uppercase mb-4">Upload PDF or Word Document</h3>
+                  <button onClick={() => fileInputRef.current?.click()} disabled={isParsing} className="bg-blue-600 hover:bg-blue-500 text-white px-10 py-3 rounded-xl font-black text-[10px] uppercase shadow-xl transition-all">
+                    {isParsing ? <><Loader2 className="h-4 w-4 animate-spin inline mr-2" />{parsingStep}</> : "Select File"}
+                  </button>
+                </div>
+                {parseError && <p className="mt-4 text-center text-rose-500 text-[10px] font-black uppercase">{parseError}</p>}
+              </div>
+            )}
 
-            <form onSubmit={(e) => {
+            <form id="quiz-editor" onSubmit={(e) => {
               e.preventDefault();
               onAddQuiz({ 
-                id: `q_${Date.now()}`, 
+                id: editingQuizId || `q_${Date.now()}`, 
                 title: manualQuizForm.title,
                 subCategoryId: manualQuizForm.subCategoryId,
                 topicId: manualQuizForm.topicId,
+                orderNumber: manualQuizForm.orderNumber,
                 videoUrl: manualQuizForm.videoUrl,
                 questions: manualQuizForm.questions.map((q, i) => ({ id: `qi_${i}_${Date.now()}`, ...q })) 
               });
-              setManualQuizForm({ title: '', subCategoryId: categories[0]?.id || '', topicId: '', videoUrl: '', questions: [{ text: '', options: ['', '', '', ''], correctAnswer: 0 }] });
-              alert("Published Successfully.");
-            }} className="bg-slate-800/30 p-8 rounded-2xl border border-slate-700 space-y-6">
-               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <AdminInput value={manualQuizForm.title} onChange={e => setManualQuizForm({...manualQuizForm, title: e.target.value})} placeholder="Title" required />
+              cancelEditing();
+              alert(editingQuizId ? "Assessment Updated Successfully." : "Assessment Published Successfully.");
+            }} className={`p-8 rounded-2xl border transition-all space-y-6 ${editingQuizId ? 'bg-blue-900/10 border-blue-500/50 shadow-[0_0_40px_rgba(59,130,246,0.15)]' : 'bg-slate-800/30 border-slate-700'}`}>
+               <div className="flex justify-between items-center mb-2">
+                 <h4 className="text-white font-black text-xs uppercase tracking-widest flex items-center gap-2">
+                   {editingQuizId ? <><Edit3 className="h-4 w-4 text-blue-400" /> Edit Assessment & Series Order</> : "Content Review & Manual Adjustment"}
+                 </h4>
+                 {editingQuizId && (
+                   <button type="button" onClick={cancelEditing} className="text-slate-400 hover:text-white flex items-center gap-2 text-[10px] font-black uppercase">
+                     <XCircle className="h-4 w-4" /> Cancel Edit
+                   </button>
+                 )}
+               </div>
+
+               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div className="md:col-span-2">
+                    <label className="text-[9px] text-slate-400 font-bold uppercase block mb-1">Assessment Title</label>
+                    <AdminInput value={manualQuizForm.title} onChange={e => setManualQuizForm({...manualQuizForm, title: e.target.value})} placeholder="Title" required />
+                  </div>
                   <div className="space-y-1">
-                    <label className="text-[9px] text-slate-400 font-bold uppercase">Main Category</label>
+                    <label className="text-[9px] text-slate-400 font-bold uppercase block">Main Category</label>
                     <AdminSelect value={manualQuizForm.subCategoryId} onChange={e => setManualQuizForm({...manualQuizForm, subCategoryId: e.target.value, topicId: ''})}>
                       {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </AdminSelect>
                   </div>
                   <div className="space-y-1">
-                    <label className="text-[9px] text-slate-400 font-bold uppercase">Sub-Category (Topic)</label>
+                    <label className="text-[9px] text-slate-400 font-bold uppercase block">Series No. / Order</label>
+                    <div className="relative">
+                      <ListOrdered className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+                      <AdminInput 
+                        type="number" 
+                        value={manualQuizForm.orderNumber} 
+                        onChange={e => setManualQuizForm({...manualQuizForm, orderNumber: parseInt(e.target.value) || 0})} 
+                        className="pl-10" 
+                        placeholder="0" 
+                      />
+                    </div>
+                  </div>
+               </div>
+               
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-[9px] text-slate-400 font-bold uppercase block">Sub-Category (Topic)</label>
                     <AdminSelect value={manualQuizForm.topicId} onChange={e => setManualQuizForm({...manualQuizForm, topicId: e.target.value})}>
                       <option value="">-- General / None --</option>
                       {topics.filter(t => t.categoryId === manualQuizForm.subCategoryId).map(t => (
@@ -328,35 +427,90 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                       ))}
                     </AdminSelect>
                   </div>
+                  <div className="space-y-1">
+                    <label className="text-[9px] text-slate-400 font-bold uppercase block">YouTube Video URL</label>
+                    <AdminInput value={manualQuizForm.videoUrl} onChange={e => setManualQuizForm({...manualQuizForm, videoUrl: e.target.value})} placeholder="https://youtube.com/..." />
+                  </div>
                </div>
-               <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+
+               <div className="space-y-6 max-h-[600px] overflow-y-auto pr-3 custom-scrollbar">
+                  <h5 className="text-[10px] text-slate-500 font-black uppercase border-b border-slate-800 pb-2">Assessment Content (Questions)</h5>
                   {manualQuizForm.questions.map((q, idx) => (
-                    <div key={idx} className="p-6 bg-slate-900/50 rounded-2xl border border-slate-800 space-y-4">
-                        <AdminInput value={q.text} onChange={e => { const n = [...manualQuizForm.questions]; n[idx].text = e.target.value; setManualQuizForm({...manualQuizForm, questions: n}); }} placeholder={`Question ${idx + 1}`} />
-                        <div className="grid grid-cols-2 gap-4">
-                           {q.options.map((o, oi) => <AdminInput key={oi} value={o} onChange={e => { const n = [...manualQuizForm.questions]; n[idx].options[oi] = e.target.value; setManualQuizForm({...manualQuizForm, questions: n}); }} placeholder={`Option ${oi + 1}`} />)}
+                    <div key={idx} className="p-6 bg-slate-900/50 rounded-2xl border border-slate-800 space-y-4 relative group">
+                        <div className="flex justify-between items-center mb-2">
+                           <span className="text-[10px] font-black text-slate-600 uppercase">Question {idx + 1}</span>
+                           <button type="button" onClick={() => removeManualQuestion(idx)} className="text-slate-700 hover:text-rose-500 p-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <Trash className="h-4 w-4" />
+                           </button>
                         </div>
+                        <AdminInput value={q.text} onChange={e => { const n = [...manualQuizForm.questions]; n[idx].text = e.target.value; setManualQuizForm({...manualQuizForm, questions: n}); }} placeholder="Question Text" />
+                        <div className="grid grid-cols-2 gap-4">
+                           {q.options.map((o, oi) => (
+                             <div key={oi} className="relative">
+                               <AdminInput 
+                                 value={o} 
+                                 onChange={e => { const n = [...manualQuizForm.questions]; n[idx].options[oi] = e.target.value; setManualQuizForm({...manualQuizForm, questions: n}); }} 
+                                 placeholder={`Option ${String.fromCharCode(65 + oi)}`} 
+                                 className={q.correctAnswer === oi ? 'border-emerald-500/50 focus:border-emerald-500' : ''}
+                               />
+                               <button 
+                                 type="button" 
+                                 onClick={() => { const n = [...manualQuizForm.questions]; n[idx].correctAnswer = oi; setManualQuizForm({...manualQuizForm, questions: n}); }}
+                                 className={`absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-lg text-[8px] font-black uppercase transition-all ${q.correctAnswer === oi ? 'bg-emerald-600 text-white' : 'bg-slate-700 text-slate-500 hover:bg-slate-600'}`}
+                               >
+                                 Correct
+                               </button>
+                             </div>
+                           ))}
+                        </div>
+                        <textarea 
+                          value={q.explanation || ''} 
+                          onChange={e => { const n = [...manualQuizForm.questions]; n[idx].explanation = e.target.value; setManualQuizForm({...manualQuizForm, questions: n}); }} 
+                          placeholder="Answer Explanation / Rationale"
+                          className="w-full p-3 bg-slate-800 text-white rounded text-sm border border-slate-700 outline-none"
+                          rows={2}
+                        />
                     </div>
                   ))}
+                  <button type="button" onClick={addManualQuestion} className="w-full py-4 border-2 border-dashed border-slate-700 rounded-2xl text-slate-500 font-black uppercase text-[10px] hover:border-emerald-500 hover:text-emerald-500 transition-all">
+                     + Add Question to Assessment
+                  </button>
                </div>
-               <button type="submit" className="w-full bg-blue-600 hover:bg-blue-500 text-white py-5 rounded-xl font-black uppercase text-[10px] tracking-widest shadow-2xl">Publish Assessment</button>
+
+               <button type="submit" className={`w-full py-6 rounded-xl font-black uppercase text-[11px] tracking-[0.2em] shadow-2xl transition-all ${editingQuizId ? 'bg-blue-600 hover:bg-blue-500 text-white scale-[1.02]' : 'bg-pakgreen text-white hover:bg-pakgreen-light'}`}>
+                 {editingQuizId ? "Save All Changes & Update Site" : "Publish Final Assessment"}
+               </button>
             </form>
 
             <div className="space-y-4 mt-12 border-t border-slate-800 pt-8">
-              <h4 className="text-white font-black text-xs uppercase tracking-widest">Existing Assessments</h4>
+              <h4 className="text-white font-black text-xs uppercase tracking-widest flex items-center gap-2">
+                 <Database className="h-4 w-4 text-gold" /> Assessment Repository
+              </h4>
               <div className="divide-y divide-slate-800">
                 {quizzes && quizzes.length > 0 ? quizzes.map(q => (
-                  <div key={q.id} className="py-4 flex justify-between items-center group">
-                    <div className="flex-grow">
-                      <h5 className="text-white font-bold text-sm uppercase">{q.title}</h5>
-                      <p className="text-[9px] text-slate-500 font-black uppercase">
-                        {categories.find(c => c.id === q.subCategoryId)?.name || 'Track'} 
-                        {q.topicId ? ` / ${topics.find(t => t.id === q.topicId)?.name}` : ''} • {q.questions?.length || 0} Items
-                      </p>
+                  <div key={q.id} className={`py-4 flex justify-between items-center group px-4 rounded-xl transition-colors ${editingQuizId === q.id ? 'bg-blue-500/10' : 'hover:bg-slate-800/20'}`}>
+                    <div className="flex-grow flex items-center gap-4">
+                      <div className="w-8 h-8 rounded bg-slate-800 flex items-center justify-center text-[10px] font-black text-gold border border-slate-700">
+                        {q.orderNumber || 0}
+                      </div>
+                      <div>
+                        <h5 className="text-white font-bold text-sm uppercase">{q.title}</h5>
+                        <p className="text-[9px] text-slate-500 font-black uppercase">
+                          {categories.find(c => c.id === q.subCategoryId)?.name || 'Track'} 
+                          {q.topicId ? ` / ${topics.find(t => t.id === q.topicId)?.name}` : ''} • {q.questions?.length || 0} Items
+                        </p>
+                      </div>
                     </div>
-                    <button onClick={() => onDeleteQuiz(q.id)} className="text-slate-600 hover:text-rose-500 p-2 opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 className="h-4 w-4" /></button>
+                    <div className="flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button onClick={() => startEditingQuiz(q)} className="text-slate-500 hover:text-blue-400 p-2" title="Full Edit">
+                        <Edit3 className="h-4 w-4" />
+                      </button>
+                      <button onClick={() => onDeleteQuiz(q.id)} className="text-slate-500 hover:text-rose-500 p-2" title="Delete Permanent">
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
                   </div>
-                )) : <p className="text-slate-500 text-[10px] font-black uppercase">No Assessments recorded in database.</p>}
+                )) : <p className="text-slate-500 text-[10px] font-black uppercase">No academic assessments found in repository.</p>}
               </div>
             </div>
           </div>

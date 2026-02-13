@@ -143,7 +143,7 @@ const App: React.FC = () => {
     document.body.removeChild(link);
   };
 
-  const marqueeText = "Wellcome to MM Academy here we provide test and notes preparation of SPSC , IBA Sukkur , LAW GAT, ECAT, MDCAT , HEC, and many other boards LEARRN with EXELLENCE";
+  const marqueeText = "Welcome to MM Academy here we provide test and notes preparation of SPSC , IBA Sukkur , LAW GAT, ECAT, MDCAT , HEC, and many other boards LEARN with EXCELLENCE";
 
   const renderGroupedItems = (
     subCatId: string | undefined, 
@@ -173,17 +173,32 @@ const App: React.FC = () => {
       }
     });
 
+    // Helper to sort by orderNumber or ID fallback
+    const sortFn = (a: any, b: any) => {
+      if ('orderNumber' in a && 'orderNumber' in b) {
+        return (a.orderNumber || 0) - (b.orderNumber || 0);
+      }
+      return b.id.localeCompare(a.id);
+    };
+
     return (
       <div className="space-y-12">
         {/* Render Grouped Topics */}
         {relevantTopics.map(topic => {
            const topicItems = grouped[topic.id];
            if (!topicItems || topicItems.length === 0) return null;
+           
+           // Sort tests numerically if they have orderNumber
+           const sortedTopicItems = [...topicItems].sort(sortFn);
+
            return (
              <div key={topic.id} className="space-y-4">
-               <h4 className="text-sm font-black text-gold-light uppercase tracking-widest border-b border-gold/20 pb-2 mb-4">{topic.name}</h4>
+               <div className="flex items-center gap-3 border-b border-gold/20 pb-2 mb-4">
+                 <h4 className="text-sm font-black text-gold-light uppercase tracking-widest">{topic.name}</h4>
+                 <div className="h-1 flex-grow bg-gold/5"></div>
+               </div>
                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                 {topicItems.map(renderItem)}
+                 {sortedTopicItems.map(renderItem)}
                </div>
              </div>
            );
@@ -192,9 +207,14 @@ const App: React.FC = () => {
         {/* Render General Items */}
         {generalItems.length > 0 && (
           <div className="space-y-4">
-             {relevantTopics.length > 0 && <h4 className="text-sm font-black text-zinc-400 uppercase tracking-widest border-b border-zinc-700 pb-2 mb-4">General / Miscellaneous</h4>}
+             {relevantTopics.length > 0 && (
+                <div className="flex items-center gap-3 border-b border-zinc-700 pb-2 mb-4">
+                   <h4 className="text-sm font-black text-zinc-400 uppercase tracking-widest">General / Miscellaneous</h4>
+                   <div className="h-1 flex-grow bg-white/5"></div>
+                </div>
+             )}
              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-               {generalItems.map(renderItem)}
+               {[...generalItems].sort(sortFn).map(renderItem)}
              </div>
           </div>
         )}
@@ -312,7 +332,12 @@ const App: React.FC = () => {
                         quizzes, 
                         (q: Quiz) => (
                           <div key={q.id} onClick={() => handleNavigate('quiz', undefined, q.id)} className="bg-white dark:bg-pakgreen-dark/50 p-6 rounded-2xl flex justify-between items-center hover:border-gold-light border border-transparent dark:border-white/5 transition-all cursor-pointer shadow-lg group">
-                             <div className="flex items-center gap-4"><FileText className="h-5 w-5 text-gold-light" /><h4 className="font-black text-sm uppercase text-zinc-800 dark:text-zinc-100">{q.title}</h4></div>
+                             <div className="flex items-center gap-4">
+                                <div className="w-8 h-8 rounded-full bg-gold/10 flex items-center justify-center text-[10px] font-black text-gold">
+                                  {q.orderNumber || 0}
+                                </div>
+                                <h4 className="font-black text-sm uppercase text-zinc-800 dark:text-zinc-100">{q.title}</h4>
+                             </div>
                              <ArrowRight className="h-5 w-5 text-gold-light opacity-0 group-hover:opacity-100 transition-all" />
                           </div>
                         ),
@@ -447,7 +472,7 @@ const App: React.FC = () => {
       <footer className="bg-white dark:bg-pakgreen-dark/80 backdrop-blur-md border-t-4 border-gold-light py-10 mt-auto">
          <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-6">
             <div className="text-left font-black text-[10px] sm:text-xs uppercase tracking-widest text-zinc-500 dark:text-zinc-400 order-1">
-               All right reserved 2026 By MM Academy
+               All rights reserved 2026 By MM Academy
             </div>
             <div className="flex items-center gap-4 order-2">
                <BookOpen className="h-8 w-8 text-pakgreen dark:text-gold-light" />

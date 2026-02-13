@@ -4,8 +4,6 @@ import { Question } from "../types";
 
 /**
  * Gemini-powered MCQ extraction service.
- * Converts raw text from documents into structured quiz objects.
- * This function MUST be exported to resolve TS2305 error in AdminPanel.
  */
 export const parseQuizFromText = async (rawText: string): Promise<Partial<Question>[]> => {
   if (!process.env.API_KEY) {
@@ -18,19 +16,24 @@ export const parseQuizFromText = async (rawText: string): Promise<Partial<Questi
     
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
-      contents: `Extract all MCQs from this text.
-      The text may contain legal or academic content. 
-      Ensure each question has exactly 4 options. 
-      Infer the correct answer if not explicitly stated.
+      contents: `You are an expert academic parser for Professional Academy. Convert the provided document text into a clean JSON array of MCQs.
       
-      Output ONLY as a JSON array of objects with:
-      text: the question string
-      options: array of 4 strings
-      correctAnswer: index 0-3
-      explanation: brief reason why it's correct
-      
-      TEXT:
-      ${rawText.substring(0, 30000)}`,
+      CRITICAL FORMAT RECOGNITION:
+      1. IN-LINE HINTS: If you see "A. Choice ✅" or "**B. Choice**", that is the correct answer.
+      2. FOOTER LETTER: If you see "Correct Answer: B" at the end of a question block, B is the correct answer.
+      3. FOOTER TEXT: If you see "Correct Answer: B) text", B is the correct answer.
+      4. DENSE TEXT: If options are jammed together (e.g. 4B. 7C. 9), split them correctly.
+
+      OUTPUT SANITIZATION RULES:
+      - The "text" and "options" strings MUST BE PLAIN TEXT.
+      - REMOVE ALL BOLDING (**), checkmarks (✅), and option letters (A., B., etc.) from the final output strings.
+      - Never leave hints in the options.
+
+      SCHEMA:
+      Map A=0, B=1, C=2, D=3. Always return 4 options.
+
+      TEXT TO PROCESS:
+      ${rawText.substring(0, 32000)}`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
