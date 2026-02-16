@@ -3,12 +3,18 @@ import Navbar from './components/Navbar';
 import QuizModule from './components/QuizModule';
 import AdminPanel from './components/AdminPanel';
 import AdSlot from './components/AdBanner';
-import { LAW_SUBCATEGORIES, GENERAL_SUBCATEGORIES } from './constants';
 import { dataService } from './services/dataService';
 import { AppState, Notification, Quiz, SubCategory, Topic, StudyNote, QuizFeedback } from './types';
 import { 
-  LogOut, Megaphone, BookOpen, FileText, X, Phone, Mail, Settings, ArrowRight, Star, ListChecks, Instagram, Linkedin, Music as TiktokIcon, ShieldAlert, Loader2, Share2, PlayCircle, Sparkles, MapPin, Send, Facebook, ChevronRight, Download
+  LogOut, Megaphone, BookOpen, FileText, X, Phone, Mail, Settings, ArrowRight, Star, ListChecks, Instagram, Linkedin, Music as TiktokIcon, ShieldAlert, Loader2, Share2, PlayCircle, Sparkles, MapPin, Send, Facebook, ChevronRight, Download, Calendar, Clock
 } from 'lucide-react';
+
+const socialLinks = [
+  { label: 'Facebook', icon: Facebook, url: 'https://www.facebook.com/MirpurkhasAliTalpurTown/', color: 'hover:text-blue-600' },
+  { label: 'Instagram', icon: Instagram, url: 'https://www.instagram.com/majid.maqsood01/?hl=en', color: 'hover:text-pink-600' },
+  { label: 'LinkedIn', icon: Linkedin, url: 'https://www.linkedin.com/in/majid-maqsood-633444374/', color: 'hover:text-blue-700' },
+  { label: 'TikTok', icon: TiktokIcon, url: 'https://www.tiktok.com/@majid.maqsood8', color: 'hover:text-zinc-900 dark:hover:text-white' }
+];
 
 const AdminLogin: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
   const [username, setUsername] = useState('');
@@ -49,6 +55,13 @@ const AdminLogin: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
   );
 };
 
+const ImageLightbox: React.FC<{ url: string; onClose: () => void }> = ({ url, onClose }) => (
+  <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/95 backdrop-blur-xl animate-in fade-in zoom-in-95 duration-300 p-4 md:p-10" onClick={onClose}>
+    <button onClick={onClose} className="absolute top-6 right-6 p-4 bg-white/10 hover:bg-white/20 rounded-full text-white transition-all shadow-2xl"><X className="h-8 w-8" /></button>
+    <img src={url} className="max-w-full max-h-full object-contain rounded-xl shadow-[0_0_100px_rgba(212,175,55,0.2)] border-2 border-white/10" alt="Full view" onClick={e => e.stopPropagation()} />
+  </div>
+);
+
 const App: React.FC = () => {
   const mainRef = useRef<HTMLElement>(null);
   const [state, setState] = useState<AppState>(() => {
@@ -57,36 +70,26 @@ const App: React.FC = () => {
   });
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => localStorage.getItem('admin_auth') === 'true');
   const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [categories, setCategories] = useState<SubCategory[]>([...LAW_SUBCATEGORIES, ...GENERAL_SUBCATEGORIES]);
+  const [categories, setCategories] = useState<SubCategory[]>([]);
   const [topics, setTopics] = useState<Topic[]>([]);
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
   const [notes, setNotes] = useState<StudyNote[]>([]);
   const [feedbacks, setFeedbacks] = useState<QuizFeedback[]>([]);
   const [activeQuiz, setActiveQuiz] = useState<Quiz | null>(null);
+  const [activeImage, setActiveImage] = useState<string | null>(null);
 
   const loadData = useCallback(async () => {
     try {
-      const [cats, tops, notifs, qs, nts, fbs] = await Promise.all([
-        dataService.getCategories().catch(() => []),
-        dataService.getTopics().catch(() => []),
-        dataService.getNotifications().catch(() => []),
-        dataService.getQuizzes().catch(() => []),
-        dataService.getNotes().catch(() => []),
-        dataService.getQuizFeedbacks().catch(() => [])
-      ]);
-      
-      const mergedCats = [...LAW_SUBCATEGORIES, ...GENERAL_SUBCATEGORIES];
-      if (cats && Array.isArray(cats)) {
-        cats.forEach((c: SubCategory) => { 
-          if (!mergedCats.find(x => x.id === c.id)) mergedCats.push(c); 
-        });
+      const data = await dataService.getBulkData();
+      if (data) {
+        setCategories(data.categories || []);
+        setTopics(data.topics || []);
+        setNotifications(data.notifications || []);
+        setQuizzes(data.quizzes || []);
+        setNotes(data.notes || []);
       }
-      setCategories(mergedCats);
-      setTopics(tops || []);
-      setNotifications(notifs || []);
-      setQuizzes(qs || []);
-      setNotes(nts || []);
-      setFeedbacks(fbs || []);
+      const feedbackData = await dataService.getQuizFeedbacks();
+      setFeedbacks(feedbackData || []);
     } catch (err) { console.error("Sync Error", err); }
   }, []);
 
@@ -96,11 +99,15 @@ const App: React.FC = () => {
     const handleHash = () => {
       const hash = window.location.hash;
       const isSub = window.location.hostname.startsWith('admin.');
-      if (hash.startsWith('#/category')) setState(p => ({ ...p, view: 'category', selectedSubCategory: hash.split('?id=')[1], isAdmin: isSub }));
-      else if (hash.startsWith('#/quiz')) {
-        const found = quizzes.find((q: Quiz) => q.id === hash.split('?id=')[1]);
-        if (found) setActiveQuiz(found);
-        setState(p => ({ ...p, view: 'quiz', selectedQuiz: hash.split('?id=')[1], isAdmin: isSub }));
+      if (hash.startsWith('#/category')) {
+        setState(p => ({ ...p, view: 'category', selectedSubCategory: hash.split('?id=')[1], isAdmin: isSub }));
+      } else if (hash.startsWith('#/quiz')) {
+        const quizId = hash.split('?id=')[1];
+        const found = quizzes.find((q: Quiz) => q.id === quizId);
+        if (found) {
+          setActiveQuiz(found);
+          setState(p => ({ ...p, view: 'quiz', selectedQuiz: quizId, isAdmin: isSub }));
+        }
       } else if (hash === '#/notifications') setState(p => ({ ...p, view: 'notifications', isAdmin: isSub }));
       else if (hash === '#/contact') setState(p => ({ ...p, view: 'contact', isAdmin: isSub }));
       else setState(p => ({ ...p, view: isSub ? 'admin' : 'home', isAdmin: isSub }));
@@ -110,40 +117,20 @@ const App: React.FC = () => {
     return () => window.removeEventListener('hashchange', handleHash);
   }, [quizzes]);
 
-  const socialLinks = [
-    { label: 'TikTok', icon: TiktokIcon, url: 'https://www.tiktok.com/@majid.maqsood8', color: 'hover:text-pink-500' },
-    { label: 'Instagram', icon: Instagram, url: 'https://www.instagram.com/majid.maqsood01/?hl=en', color: 'hover:text-purple-500' },
-    { label: 'LinkedIn', icon: Linkedin, url: 'https://www.linkedin.com/in/majid-maqsood-633444374/', color: 'hover:text-blue-600' },
-    { label: 'Facebook', icon: Facebook, url: 'https://www.facebook.com/MirpurkhasAliTalpurTown/', color: 'hover:text-blue-500' }
-  ];
-
   const handleNavigate = (view: AppState['view'], sub?: string, qId?: string) => {
     window.location.hash = view === 'category' ? `#/category?id=${sub}` : view === 'quiz' ? `#/quiz?id=${qId}` : view === 'notifications' ? '#/notifications' : view === 'contact' ? '#/contact' : '#home';
-    if (view !== 'home' && mainRef.current) {
-      setTimeout(() => {
-        mainRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }, 150);
-    } else {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleShareNews = async (n: Notification) => {
     const shareData = { title: n.title, text: `${n.title}: ${n.content.substring(0, 100)}...`, url: window.location.origin + '#/notifications' };
     if (navigator.share) try { await navigator.share(shareData); } catch (err) { console.error("Share error", err); }
-    else { navigator.clipboard.writeText(shareData.url); alert("Link copied to clipboard for sharing."); }
+    else { navigator.clipboard.writeText(shareData.url); alert("Link copied to clipboard."); }
   };
 
-  const handleDownloadNote = (note: StudyNote) => {
-    const link = document.createElement('a');
-    link.href = note.url;
-    link.download = `${note.title}.pdf`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
-  const marqueeText = "Welcome to MM Academy here we provide test and notes preparation of SPSC , IBA Sukkur , LAW GAT, ECAT, MDCAT , HEC, and many other boards LEARN with EXCELLENCE";
+  const marqueeText = notifications.length > 0 
+    ? notifications.slice(0, 5).map(n => `NEWS: ${n.title}`).join(" | ") + " | Welcome to Professional Academy"
+    : "Welcome to Professional Academy - Specialized preparation for Law Admission Tests, SPSC, IBA Sukkur, ECAT, MDCAT and many more.";
 
   const renderGroupedItems = (
     subCatId: string | undefined, 
@@ -152,15 +139,9 @@ const App: React.FC = () => {
     emptyMsg: string
   ) => {
     if (!subCatId) return null;
-    
-    // Filter items for this main category
     const catItems = items.filter(i => i.subCategoryId === subCatId);
-    if (catItems.length === 0) return <p className="text-zinc-400 dark:text-zinc-500 text-xs font-black uppercase italic">{emptyMsg}</p>;
-
-    // Get relevant topics
+    if (catItems.length === 0) return <p className="text-zinc-400 dark:text-zinc-500 text-xs font-black uppercase italic py-8">{emptyMsg}</p>;
     const relevantTopics = topics.filter(t => t.categoryId === subCatId);
-    
-    // Group items by topic
     const grouped: Record<string, typeof items> = {};
     const generalItems: typeof items = [];
 
@@ -173,24 +154,11 @@ const App: React.FC = () => {
       }
     });
 
-    // Helper to sort by orderNumber or ID fallback
-    const sortFn = (a: any, b: any) => {
-      if ('orderNumber' in a && 'orderNumber' in b) {
-        return (a.orderNumber || 0) - (b.orderNumber || 0);
-      }
-      return b.id.localeCompare(a.id);
-    };
-
     return (
       <div className="space-y-12">
-        {/* Render Grouped Topics */}
         {relevantTopics.map(topic => {
            const topicItems = grouped[topic.id];
            if (!topicItems || topicItems.length === 0) return null;
-           
-           // Sort tests numerically if they have orderNumber
-           const sortedTopicItems = [...topicItems].sort(sortFn);
-
            return (
              <div key={topic.id} className="space-y-4">
                <div className="flex items-center gap-3 border-b border-gold/20 pb-2 mb-4">
@@ -198,23 +166,21 @@ const App: React.FC = () => {
                  <div className="h-1 flex-grow bg-gold/5"></div>
                </div>
                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                 {sortedTopicItems.map(renderItem)}
+                 {topicItems.map(renderItem)}
                </div>
              </div>
            );
         })}
-        
-        {/* Render General Items */}
         {generalItems.length > 0 && (
           <div className="space-y-4">
              {relevantTopics.length > 0 && (
-                <div className="flex items-center gap-3 border-b border-zinc-700 pb-2 mb-4">
-                   <h4 className="text-sm font-black text-zinc-400 uppercase tracking-widest">General / Miscellaneous</h4>
+                <div className="flex items-center gap-3 border-b border-zinc-700 dark:border-white/10 pb-2 mb-4">
+                   <h4 className="text-sm font-black text-zinc-400 uppercase tracking-widest">General Content</h4>
                    <div className="h-1 flex-grow bg-white/5"></div>
                 </div>
              )}
              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-               {[...generalItems].sort(sortFn).map(renderItem)}
+               {generalItems.map(renderItem)}
              </div>
           </div>
         )}
@@ -222,8 +188,12 @@ const App: React.FC = () => {
     );
   };
 
+  const isLLB = state.selectedSubCategory?.startsWith('llb-');
+  const availableLLBSemesters = categories.filter(c => c.id.startsWith('llb-')).map(c => c.id);
+
   return (
     <div className="min-h-screen flex flex-col bg-zinc-50 dark:bg-pakgreen-deepest transition-colors islamic-pattern">
+      {activeImage && <ImageLightbox url={activeImage} onClose={() => setActiveImage(null)} />}
       <Navbar onNavigate={handleNavigate} />
       
       <div className="w-full bg-gold py-2 overflow-hidden border-y border-gold-dark shadow-md z-40">
@@ -239,80 +209,51 @@ const App: React.FC = () => {
       <main ref={mainRef} className="flex-grow w-full">
         {state.view === 'home' && (
           <div className="animate-in fade-in duration-700">
-            <section className="relative py-20 bg-white dark:bg-pakgreen-dark/40 border-b border-gold/5">
-              <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+            <section className="relative py-20 bg-white dark:bg-pakgreen-dark/40 border-b border-gold/5 overflow-hidden">
+              <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center relative z-10">
                 <div>
-                  <div className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-pakgreen dark:bg-pakgreen-light border border-gold/30 rounded mb-6 shadow-sm">
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-pakgreen dark:bg-pakgreen-light border border-gold/30 rounded mb-6 shadow-sm">
                     <Star className="h-2 w-2 text-gold-light fill-current" />
-                    <span className="text-[8px] font-black text-white uppercase tracking-[0.1em]">Pakistan Academic Portal</span>
+                    <span className="text-[9px] font-black text-white uppercase tracking-[0.1em]">National Academic Standard</span>
                   </div>
-                  <h1 className="text-5xl sm:text-7xl font-black text-pakgreen dark:text-white uppercase tracking-tighter mb-8 leading-none drop-shadow-lg">Elite <span className="text-gold">Legal</span> Portal</h1>
-                  <p className="text-zinc-600 dark:text-zinc-300 text-lg mb-10 max-w-lg leading-relaxed font-medium">Premier preparation environment for National Law and General Admission Tests.</p>
+                  <h1 className="text-5xl sm:text-7xl font-black text-pakgreen dark:text-white uppercase tracking-tighter mb-8 leading-none drop-shadow-lg">Elite <span className="text-gold">Academic</span> Portal</h1>
+                  <p className="text-zinc-600 dark:text-zinc-300 text-lg mb-10 max-w-lg leading-relaxed font-medium">Pakistan's premier platform for Law Admission Tests, SPSC preparation, and standardized admissions coaching. Trusted by students nationwide.</p>
                   <div className="flex flex-wrap gap-4">
-                    <button onClick={() => handleNavigate('category', 'lat')} className="bg-pakgreen text-white dark:bg-gold-light dark:text-pakgreen px-12 py-6 rounded-2xl font-black uppercase text-xs tracking-widest shadow-2xl transition-all hover:scale-105 hover:shadow-gold/20">Start Track</button>
-                    <button onClick={() => handleNavigate('notifications')} className="border-2 border-pakgreen dark:border-gold-light px-12 py-6 rounded-2xl font-black uppercase text-xs tracking-widest transition-all hover:bg-zinc-100 dark:hover:bg-pakgreen-dark dark:text-gold-light">News Updates</button>
+                    <button onClick={() => handleNavigate('category', 'lat')} className="bg-pakgreen text-white dark:bg-gold-light dark:text-pakgreen px-12 py-6 rounded-2xl font-black uppercase text-xs tracking-widest shadow-2xl transition-all hover:scale-105">Explore Tracks</button>
+                    <button onClick={() => handleNavigate('notifications')} className="border-2 border-pakgreen dark:border-gold-light px-12 py-6 rounded-2xl font-black uppercase text-xs tracking-widest transition-all hover:bg-zinc-100 dark:hover:bg-pakgreen-dark dark:text-gold-light">Bulletin Archive</button>
                   </div>
                 </div>
-                <div className="hidden lg:block">
+                <div className="hidden lg:block relative">
+                   <div className="absolute -top-10 -right-10 w-64 h-64 bg-gold/10 blur-3xl rounded-full"></div>
                   <div className="w-full aspect-square bg-pakgreen rounded-[60px] border-4 border-gold/20 flex flex-col p-12 shadow-2xl relative overflow-hidden group">
                     <div className="absolute inset-0 islamic-pattern opacity-10"></div>
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent"></div>
-                    <BookOpen className="h-20 w-20 text-gold-light mb-8 relative z-10 transition-transform group-hover:scale-110" />
-                    <h3 className="text-white text-4xl font-black uppercase relative z-10">MM Academy</h3>
-                    <p className="text-gold-light/80 font-black text-[10px] uppercase tracking-[0.5em] mt-auto relative z-10">Pakistan Academic Portal</p>
+                    <BookOpen className="h-24 w-24 text-gold-light mb-8 relative z-10 transition-transform group-hover:scale-110" />
+                    <h3 className="text-white text-5xl font-black uppercase relative z-10 leading-tight">Professional Academy</h3>
+                    <p className="text-gold-light/80 font-black text-[12px] uppercase tracking-[0.5em] mt-auto relative z-10">Gateway to legal and academic excellence</p>
                   </div>
                 </div>
               </div>
             </section>
             
-            <div className="max-w-7xl mx-auto px-6"><AdSlot placement="content" /></div>
-
-            {/* HOME NEWS SECTION */}
-            <section className="bg-zinc-100 dark:bg-pakgreen-deepest py-20 border-y border-gold/10">
-               <div className="max-w-7xl mx-auto px-6">
-                  <div className="flex items-center justify-between mb-12">
-                     <h2 className="text-3xl font-black text-pakgreen dark:text-white uppercase tracking-tighter flex items-center gap-4">
-                        <Megaphone className="h-8 w-8 text-gold-light animate-bounce-subtle" /> Institutional News
-                     </h2>
-                     <button onClick={() => handleNavigate('notifications')} className="text-xs font-black uppercase tracking-widest text-pakgreen dark:text-gold-light hover:underline">View All</button>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                     {notifications.slice(0, 3).map(n => (
-                        <div key={n.id} className="bg-white dark:bg-pakgreen-dark/50 backdrop-blur-sm p-8 rounded-[32px] border border-gold/10 shadow-xl flex flex-col h-full group overflow-hidden hover:border-gold/30 transition-all">
-                           <div className="flex justify-between items-start mb-4">
-                             <span className="text-[9px] font-black text-gold-light uppercase tracking-widest bg-pakgreen/10 dark:bg-gold/5 px-2 py-1 rounded">{n.type} • {n.date}</span>
-                             <button onClick={() => handleShareNews(n)} className="text-zinc-400 hover:text-gold-light transition-colors"><Share2 className="h-4 w-4" /></button>
-                           </div>
-                           {n.attachmentUrl && n.attachmentUrl.length > 5 && (
-                             <div className="w-full h-48 overflow-hidden rounded-2xl mb-4 border border-gold/5 bg-zinc-50">
-                                <img src={n.attachmentUrl} className="w-full h-full object-cover transition-transform group-hover:scale-110" alt={n.title} />
-                             </div>
-                           )}
-                           <h3 className="text-lg font-black text-pakgreen dark:text-white mb-3 uppercase tracking-tight line-clamp-2">{n.title}</h3>
-                           <p className="text-[11px] text-zinc-500 dark:text-zinc-300 line-clamp-3 leading-relaxed mb-6 flex-grow">{n.content}</p>
-                           {n.linkedQuizId && n.linkedQuizId.length > 1 && (
-                             <button onClick={() => handleNavigate('quiz', undefined, n.linkedQuizId)} className="w-full flex items-center justify-center gap-2 py-3 bg-gold text-pakgreen rounded-xl text-[9px] font-black uppercase tracking-widest shadow-md mt-4 hover:bg-gold-dark hover:text-white transition-colors">
-                               <PlayCircle className="h-4 w-4" /> Start Shortcut Quiz
-                             </button>
-                           )}
-                        </div>
-                     ))}
+            <section className="max-w-7xl mx-auto px-6 py-24">
+               <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-16">
+                  <div>
+                    <span className="text-gold font-black uppercase text-[11px] tracking-[0.4em] mb-2 block">Preparation Modules</span>
+                    <h3 className="text-4xl font-black text-pakgreen dark:text-white uppercase tracking-tighter">Academic Tracks</h3>
                   </div>
                </div>
-            </section>
-
-            {/* PREPARATION TRACKS SECTION */}
-            <section className="max-w-7xl mx-auto px-6 py-24">
-               <h3 className="text-4xl font-black text-pakgreen dark:text-white uppercase mb-16 border-l-8 border-gold-light pl-6 tracking-tighter">Preparation Tracks</h3>
                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
                   {categories.map(sub => (
-                    <div key={sub.id} onClick={() => handleNavigate('category', sub.id)} className="group p-10 bg-white dark:bg-pakgreen-dark/40 backdrop-blur-sm border border-gold/10 rounded-[32px] hover:border-gold-light transition-all cursor-pointer shadow-xl relative overflow-hidden hover:transform hover:-translate-y-2">
-                       <h3 className="font-black text-pakgreen dark:text-gold-light text-xl uppercase mb-4">{sub.name}</h3>
-                       <p className="text-xs text-zinc-500 dark:text-zinc-400 font-bold uppercase tracking-widest leading-relaxed line-clamp-3">{sub.description}</p>
-                       <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity">
-                         <BookOpen className="h-16 w-16 text-gold-light" />
+                    <div key={sub.id} onClick={() => handleNavigate('category', sub.id)} className="group p-12 bg-white dark:bg-pakgreen-dark/30 backdrop-blur-sm border border-gold/10 rounded-[48px] hover:border-gold-light transition-all cursor-pointer shadow-xl relative overflow-hidden hover:transform hover:-translate-y-2">
+                       <div className="bg-pakgreen/5 dark:bg-white/5 w-16 h-16 rounded-2xl flex items-center justify-center mb-8 group-hover:bg-gold-light/20 transition-colors">
+                          <BookOpen className="h-8 w-8 text-pakgreen dark:text-gold-light" />
                        </div>
-                       <ChevronRight className="h-6 w-6 text-gold-light absolute bottom-8 right-8 opacity-0 group-hover:opacity-100 transition-all" />
+                       <h3 className="font-black text-pakgreen dark:text-gold-light text-xl uppercase mb-4 tracking-tight">{sub.name}</h3>
+                       <p className="text-[11px] text-zinc-500 dark:text-zinc-400 font-bold uppercase tracking-widest leading-relaxed line-clamp-3">{sub.description}</p>
+                       <div className="mt-8 flex items-center gap-2 text-gold font-black text-[10px] uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-all">
+                          Explore Track <ArrowRight className="h-4 w-4" />
+                       </div>
+                       <ChevronRight className="h-6 w-6 text-gold-light absolute bottom-10 right-10 opacity-20 group-hover:opacity-100 transition-all" />
                     </div>
                   ))}
                </div>
@@ -322,137 +263,57 @@ const App: React.FC = () => {
 
         {state.view === 'category' && (
           <div className="max-w-7xl mx-auto px-6 py-12 animate-in fade-in">
+             <div className="mb-12">
+                <button onClick={() => window.history.back()} className="text-xs font-black uppercase text-zinc-400 hover:text-pakgreen flex items-center gap-2 mb-6"><ArrowRight className="h-4 w-4 rotate-180" /> Return</button>
+                <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+                   <div>
+                      <h2 className="text-4xl font-black text-pakgreen dark:text-white uppercase tracking-tighter mb-2">{categories.find(c => c.id === state.selectedSubCategory)?.name || 'Track Registry'}</h2>
+                      <p className="text-gold-light font-black uppercase text-[10px] tracking-[0.3em]">{categories.find(c => c.id === state.selectedSubCategory)?.description}</p>
+                   </div>
+                   {isLLB && availableLLBSemesters.length > 1 && (
+                     <div className="flex flex-wrap gap-2 p-1.5 bg-zinc-100 dark:bg-pakgreen-dark/50 rounded-2xl border border-gold/10">
+                        {availableLLBSemesters.map(sid => (
+                          <button key={sid} onClick={() => handleNavigate('category', sid)} className={`px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${state.selectedSubCategory === sid ? 'bg-pakgreen text-white shadow-lg' : 'text-zinc-500 hover:bg-white/10'}`}>
+                            Sem {sid.split('-s')[1] || sid.replace('llb-', '')}
+                          </button>
+                        ))}
+                     </div>
+                   )}
+                </div>
+             </div>
              <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
                 <div className="lg:col-span-8 space-y-12">
-                   {/* Quizzes Section */}
                    <section>
-                      <h3 className="text-xl font-black text-pakgreen dark:text-white uppercase mb-8 flex items-center gap-3"><ListChecks className="h-6 w-6 text-gold-light" /> Online Test Preparation</h3>
-                      {renderGroupedItems(
-                        state.selectedSubCategory, 
-                        quizzes, 
-                        (q: Quiz) => (
-                          <div key={q.id} onClick={() => handleNavigate('quiz', undefined, q.id)} className="bg-white dark:bg-pakgreen-dark/50 p-6 rounded-2xl flex justify-between items-center hover:border-gold-light border border-transparent dark:border-white/5 transition-all cursor-pointer shadow-lg group">
-                             <div className="flex items-center gap-4">
-                                <div className="w-8 h-8 rounded-full bg-gold/10 flex items-center justify-center text-[10px] font-black text-gold">
-                                  {q.orderNumber || 0}
+                      <h3 className="text-xl font-black text-pakgreen dark:text-white uppercase mb-8 flex items-center gap-4"><ListChecks className="h-8 w-8 text-gold-light" /> Assessment Library</h3>
+                      {renderGroupedItems(state.selectedSubCategory, quizzes, (q: Quiz) => (
+                          <div key={q.id} onClick={() => handleNavigate('quiz', undefined, q.id)} className="bg-white dark:bg-pakgreen-dark/40 p-8 rounded-[32px] flex justify-between items-center hover:border-gold-light border border-transparent dark:border-white/5 transition-all cursor-pointer shadow-lg group">
+                             <div className="flex items-center gap-6">
+                                <div className="w-12 h-12 rounded-2xl bg-gold/10 flex items-center justify-center text-sm font-black text-gold group-hover:bg-gold transition-all">{q.orderNumber || 0}</div>
+                                <div className="flex flex-col">
+                                   <h4 className="font-black text-base uppercase text-zinc-800 dark:text-zinc-100">{q.title}</h4>
+                                   <span className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest">{q.questions?.length || 0} Items</span>
                                 </div>
-                                <h4 className="font-black text-sm uppercase text-zinc-800 dark:text-zinc-100">{q.title}</h4>
                              </div>
-                             <ArrowRight className="h-5 w-5 text-gold-light opacity-0 group-hover:opacity-100 transition-all" />
+                             <ArrowRight className="h-6 w-6 text-gold-light opacity-30 group-hover:opacity-100 transition-all" />
                           </div>
-                        ),
-                        "No active assessments in this track."
-                      )}
-                   </section>
-
-                   {/* Notes Section */}
-                   <section className="mt-16">
-                      <h3 className="text-xl font-black text-pakgreen dark:text-white uppercase mb-8 flex items-center gap-3"><BookOpen className="h-6 w-6 text-gold-light" /> Study Materials & Notes</h3>
-                      {renderGroupedItems(
-                        state.selectedSubCategory,
-                        notes,
-                        (note: StudyNote) => (
-                            <div key={note.id} className="bg-white dark:bg-pakgreen-dark/40 p-8 rounded-[32px] border border-gold/10 shadow-xl flex flex-col gap-6 group hover:border-gold transition-all">
-                               <div className="flex items-center gap-4">
-                                 <div className="bg-rose-500/10 p-4 rounded-2xl text-rose-500"><FileText className="h-6 w-6" /></div>
-                                 <h4 className="text-lg font-black text-pakgreen dark:text-white uppercase tracking-tight">{note.title}</h4>
-                               </div>
-                               <button 
-                                 onClick={() => handleDownloadNote(note)}
-                                 className="w-full flex items-center justify-center gap-3 py-4 bg-pakgreen dark:bg-gold-light text-white dark:text-pakgreen rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl transition-all hover:scale-105"
-                               >
-                                 <Download className="h-4 w-4" /> Download PDF Note
-                               </button>
-                            </div>
-                        ),
-                        "No uploaded materials for this track yet."
-                      )}
+                        ), "No active assessments found.")}
                    </section>
                 </div>
-                <aside className="lg:col-span-4"><AdSlot placement="sidebar" /></aside>
              </div>
           </div>
         )}
 
         {state.view === 'quiz' && activeQuiz && <QuizModule quiz={activeQuiz} categories={categories} onComplete={() => loadData()} />}
 
-        {state.view === 'notifications' && (
-          <div className="max-w-4xl mx-auto px-6 py-20">
-             <h2 className="text-4xl font-black text-pakgreen dark:text-gold-light uppercase tracking-tighter mb-12 flex items-center gap-4"><Megaphone className="h-10 w-10 text-gold-light" /> Institutional News</h2>
-             <div className="space-y-8">
-                {notifications.map(n => (
-                   <div key={n.id} className="bg-white dark:bg-pakgreen-dark/50 backdrop-blur-md border-l-8 border-gold-light p-10 rounded-r-3xl shadow-2xl flex flex-col gap-6 overflow-hidden">
-                      <div className="flex justify-between items-center">
-                         <span className="text-[10px] font-black text-gold-light uppercase tracking-[0.3em] bg-pakgreen/10 dark:bg-gold/10 px-2 py-1 rounded">{n.type}</span>
-                         <button onClick={() => handleShareNews(n)} className="text-zinc-400 hover:text-gold-light flex items-center gap-2 text-[9px] font-black uppercase"><Share2 className="h-4 w-4" /> Share</button>
-                      </div>
-                      {n.attachmentUrl && n.attachmentUrl.length > 5 && <div className="w-full rounded-3xl overflow-hidden border-4 border-gold/10"><img src={n.attachmentUrl} className="w-full h-auto" alt={n.title} /></div>}
-                      <h3 className="text-2xl font-black text-pakgreen dark:text-white uppercase tracking-tight">{n.title}</h3>
-                      <p className="text-zinc-600 dark:text-zinc-300 text-sm leading-relaxed">{n.content}</p>
-                      {n.linkedQuizId && n.linkedQuizId.length > 1 && (
-                        <button onClick={() => handleNavigate('quiz', undefined, n.linkedQuizId)} className="self-start flex items-center gap-3 px-10 py-5 bg-gold text-pakgreen rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl transition-all hover:scale-105">
-                          <PlayCircle className="h-4 w-4" /> Start Associated Assessment
-                        </button>
-                      )}
-                   </div>
-                ))}
-             </div>
-          </div>
-        )}
-
-        {state.view === 'contact' && (
-          <div className="max-w-7xl mx-auto px-6 py-24 animate-in fade-in">
-             <div className="grid grid-cols-1 lg:grid-cols-2 gap-20">
-                <div className="space-y-12">
-                   <div>
-                      <h2 className="text-5xl font-black text-pakgreen dark:text-white uppercase tracking-tighter mb-6">Get in <span className="text-gold">Touch</span></h2>
-                      <p className="text-zinc-500 dark:text-zinc-400 font-medium leading-relaxed">Our academic support team is available 24/7 to assist you with preparation modules.</p>
-                   </div>
-                   <div className="space-y-6">
-                      <div className="flex items-start gap-6 p-8 bg-white dark:bg-pakgreen-dark/40 backdrop-blur-sm rounded-3xl border border-gold/10 shadow-lg">
-                         <div className="p-4 bg-pakgreen rounded-2xl text-gold-light"><Phone className="h-6 w-6" /></div>
-                         <div><p className="text-[10px] font-black uppercase text-zinc-400 mb-1">Direct Line</p><p className="text-lg font-black text-pakgreen dark:text-white">+92 318 2990927</p></div>
-                      </div>
-                      <div className="flex items-start gap-6 p-8 bg-white dark:bg-pakgreen-dark/40 backdrop-blur-sm rounded-3xl border border-gold/10 shadow-lg">
-                         <div className="p-4 bg-pakgreen rounded-2xl text-gold-light"><Mail className="h-6 w-6" /></div>
-                         <div><p className="text-[10px] font-black uppercase text-zinc-400 mb-1">Email Registry</p><p className="text-lg font-black text-pakgreen dark:text-white uppercase truncate">mmonlineacademy26@gmail.com</p></div>
-                      </div>
-                      <div className="flex items-start gap-6 p-8 bg-white dark:bg-pakgreen-dark/40 backdrop-blur-sm rounded-3xl border border-gold/10 shadow-lg">
-                         <div className="p-4 bg-pakgreen rounded-2xl text-gold-light"><MapPin className="h-6 w-6" /></div>
-                         <div><p className="text-[10px] font-black uppercase text-zinc-400 mb-1">Headquarters</p><p className="text-lg font-black text-pakgreen dark:text-white uppercase">Mirpurkhas, Sindh, Pakistan</p></div>
-                      </div>
-                   </div>
-                   <div className="flex justify-center gap-6 pt-10 border-t border-gold/10">
-                     {socialLinks.map(s => <a key={s.label} href={s.url} target="_blank" rel="noopener noreferrer" className={`p-5 bg-white dark:bg-pakgreen-dark text-pakgreen dark:text-gold-light rounded-2xl shadow-xl hover:scale-110 transition-all border border-gold/10 ${s.color}`}><s.icon className="h-7 w-7" /></a>)}
-                   </div>
-                </div>
-                <div className="bg-white dark:bg-pakgreen-dark/50 backdrop-blur-lg p-12 rounded-[50px] shadow-2xl border-4 border-gold/20 relative">
-                   <div className="absolute inset-0 islamic-pattern opacity-10"></div>
-                   <h3 className="relative z-10 text-2xl font-black text-pakgreen dark:text-white uppercase mb-8">Send Academic Inquiry</h3>
-                   <form className="relative z-10 space-y-6" onSubmit={e => e.preventDefault()}>
-                      <input className="w-full p-5 bg-zinc-50 dark:bg-pakgreen-deepest rounded-2xl border border-zinc-200 dark:border-gold/10 text-sm outline-none dark:text-white transition-colors focus:border-gold/50" placeholder="Student Name" />
-                      <input className="w-full p-5 bg-zinc-50 dark:bg-pakgreen-deepest rounded-2xl border border-zinc-200 dark:border-gold/10 text-sm outline-none dark:text-white transition-colors focus:border-gold/50" placeholder="Email Address" />
-                      <textarea className="w-full p-5 bg-zinc-50 dark:bg-pakgreen-deepest rounded-2xl border border-zinc-200 dark:border-gold/10 text-sm outline-none dark:text-white transition-colors focus:border-gold/50" rows={4} placeholder="Inquiry Details..." />
-                      <button className="w-full py-6 bg-pakgreen dark:bg-gold text-white dark:text-pakgreen font-black uppercase text-xs tracking-[0.3em] rounded-2xl shadow-xl flex items-center justify-center gap-3 hover:scale-105 transition-all">Register Inquiry <Send className="h-4 w-4" /></button>
-                   </form>
-                </div>
-             </div>
-          </div>
-        )}
-
         {state.view === 'admin' && state.isAdmin && (
-          <>{!isAuthenticated ? <AdminLogin onLogin={() => {setIsAuthenticated(true); localStorage.setItem('admin_auth', 'true'); loadData();}} /> : (
+          <>{!isAuthenticated ? <AdminLogin onLogin={() => {setIsAuthenticated(true); loadData();}} /> : (
             <div className="max-w-7xl mx-auto px-6 py-12">
               <div className="flex justify-between items-center mb-12">
-                <h2 className="text-3xl font-black text-pakgreen dark:text-gold-light uppercase tracking-tighter flex items-center gap-4"><Settings className="h-8 w-8" /> Console Control</h2>
-                <button onClick={() => {setIsAuthenticated(false); localStorage.removeItem('admin_auth');}} className="flex items-center gap-2 text-zinc-500 font-black text-[10px] uppercase hover:text-pakgreen transition-colors"><LogOut className="h-4 w-4" /> Exit</button>
+                <div className="flex items-center gap-4"><Settings className="h-8 w-8 text-gold-light" /><h2 className="text-4xl font-black text-pakgreen dark:text-gold-light uppercase tracking-tighter">Admin Console</h2></div>
+                <button onClick={() => {setIsAuthenticated(false); localStorage.removeItem('admin_auth');}} className="px-6 py-3 bg-zinc-100 dark:bg-white/5 text-zinc-500 font-black text-[10px] uppercase rounded-xl transition-all border border-transparent hover:border-current"><LogOut className="h-4 w-4" /></button>
               </div>
               <AdminPanel 
-                notifications={notifications} 
-                categories={categories} 
-                topics={topics}
-                quizzes={quizzes} 
-                notes={notes}
+                notifications={notifications} categories={categories} topics={topics} quizzes={quizzes} notes={notes}
                 onAddNotification={async (n) => { await dataService.addNotification(n); loadData(); }} 
                 onDeleteNotification={async (id) => { await dataService.deleteNotification(id); loadData(); }} 
                 onAddCategory={async (c) => { await dataService.addCategory(c); loadData(); }} 
@@ -468,21 +329,6 @@ const App: React.FC = () => {
           )}</>
         )}
       </main>
-
-      <footer className="bg-white dark:bg-pakgreen-dark/80 backdrop-blur-md border-t-4 border-gold-light py-10 mt-auto">
-         <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-6">
-            <div className="text-left font-black text-[10px] sm:text-xs uppercase tracking-widest text-zinc-500 dark:text-zinc-400 order-1">
-               All rights reserved 2026 By MM Academy
-            </div>
-            <div className="flex items-center gap-4 order-2">
-               <BookOpen className="h-8 w-8 text-pakgreen dark:text-gold-light" />
-               <span className="text-2xl font-black uppercase text-pakgreen dark:text-gold-light tracking-tighter">MM Academy</span>
-            </div>
-            <div className="text-right font-black text-[10px] sm:text-xs uppercase tracking-widest text-zinc-500 dark:text-zinc-400 order-3">
-               Designed and developed by <a href="https://marketingclub.com.pk" target="_blank" rel="noopener noreferrer" className="text-pakgreen dark:text-gold-light hover:text-gold transition-colors underline">marketing club</a>
-            </div>
-         </div>
-      </footer>
     </div>
   );
 };

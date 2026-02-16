@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Search, Menu, X, BookOpen, Facebook, Twitter, Youtube, Phone, Mail, ChevronRight, Sun, Moon, Star, Instagram, Linkedin, Music as TiktokIcon } from 'lucide-react';
 import { AppState } from '../types';
@@ -76,7 +77,7 @@ const Navbar: React.FC<NavbarProps> = ({ onNavigate }) => {
           </div>
           <div className="flex flex-col overflow-hidden">
             <h1 className="text-base sm:text-lg md:text-3xl font-black text-pakgreen dark:text-gold-light leading-none uppercase tracking-tight truncate">MM Academy</h1>
-            <p className="text-[7px] sm:text-[9px] md:text-xs font-black text-zinc-500 dark:text-zinc-400 mt-1 tracking-[0.2em] uppercase truncate">Gateway to Legal Excellence</p>
+            <p className="text-[7px] sm:text-[9px] md:text-xs font-black text-zinc-500 dark:text-zinc-400 mt-1 tracking-[0.2em] uppercase truncate">Online Jobs Preparation Platform</p>
           </div>
         </div>
 
