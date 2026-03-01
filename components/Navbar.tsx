@@ -5,10 +5,15 @@ import { AppState } from '../types';
 
 interface NavbarProps {
   onNavigate: (view: AppState['view'], subId?: string) => void;
+  searchQuery: string;
+  setSearchQuery: (query: string) => void;
+  searchFilter: 'all' | 'quiz' | 'note';
+  setSearchFilter: (filter: 'all' | 'quiz' | 'note') => void;
 }
 
-const Navbar: React.FC<NavbarProps> = ({ onNavigate }) => {
+const Navbar: React.FC<NavbarProps> = ({ onNavigate, searchQuery, setSearchQuery, searchFilter, setSearchFilter }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
   // Default to 'dark' if no preference is saved
   const [theme, setTheme] = useState<'dark' | 'light'>(
     () => (localStorage.getItem('theme') as 'dark' | 'light') || 'dark'
@@ -30,9 +35,9 @@ const Navbar: React.FC<NavbarProps> = ({ onNavigate }) => {
 
   const navItems = [
     { label: 'Home', view: 'home' as const },
-    { label: 'LAT Series', view: 'category' as const, subId: 'lat' },
-    { label: 'Law GAT Series', view: 'category' as const, subId: 'law-gat' },
     { label: 'LLB Notes', view: 'category' as const, subId: 'llb-s1' },
+    { label: 'MCAT Series', view: 'category' as const, subId: 'mcat' },
+    { label: 'SPSC Tests', view: 'category' as const, subId: 'spsc' },
     { label: 'News', view: 'notifications' as const },
     { label: 'Contact', view: 'contact' as const }
   ];
@@ -66,7 +71,7 @@ const Navbar: React.FC<NavbarProps> = ({ onNavigate }) => {
       {/* Main Header */}
       <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-3 md:py-6 flex justify-between items-center gap-4">
         <div 
-          className="flex items-center cursor-pointer select-none group min-w-0"
+          className={`flex items-center cursor-pointer select-none group min-w-0 transition-all duration-300 ${isSearchFocused ? 'w-0 opacity-0 md:w-auto md:opacity-100' : 'w-auto opacity-100'}`}
           onClick={() => handleNavClick('home')}
         >
           <div className="relative shrink-0">
@@ -76,16 +81,42 @@ const Navbar: React.FC<NavbarProps> = ({ onNavigate }) => {
             <Star className="absolute -top-1 -right-1 h-4 w-4 text-gold-light fill-current animate-pulse-subtle" />
           </div>
           <div className="flex flex-col overflow-hidden">
-            <h1 className="text-base sm:text-lg md:text-3xl font-black text-pakgreen dark:text-gold-light leading-none uppercase tracking-tight truncate">MM Academy</h1>
+            <h1 className="text-base sm:text-lg md:text-3xl font-heading font-black text-pakgreen dark:text-gold-light leading-none uppercase tracking-normal truncate">MM Academy</h1>
             <p className="text-[7px] sm:text-[9px] md:text-xs font-black text-zinc-500 dark:text-zinc-400 mt-1 tracking-[0.2em] uppercase truncate">Online Jobs Preparation Platform</p>
           </div>
         </div>
 
-        {/* ARABIC INVOCATION */}
-        <div className="flex-grow flex justify-center items-center pointer-events-none px-4">
-          <span className="hidden lg:block text-4xl xl:text-5xl font-serif font-bold text-pakgreen dark:text-gold-light opacity-90 whitespace-nowrap drop-shadow-lg" style={{ direction: 'rtl' }}>
-            ربِّ زِدْنِي عِلْماً
-          </span>
+        {/* SEARCH BAR */}
+        <div className={`flex-grow transition-all duration-300 ${isSearchFocused ? 'max-w-3xl' : 'max-w-xl'} relative group`}>
+          <div className={`relative flex items-center transition-all duration-300 ${isSearchFocused ? 'scale-[1.02]' : ''}`}>
+            <Search className={`absolute left-4 h-4 w-4 transition-colors ${isSearchFocused ? 'text-gold' : 'text-zinc-400'}`} />
+            <input 
+              type="text" 
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              onFocus={() => setIsSearchFocused(true)}
+              onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)}
+              placeholder="Search academy resources..."
+              className="w-full pl-12 pr-4 py-3 bg-zinc-100 dark:bg-pakgreen-dark/50 rounded-xl border border-zinc-200 dark:border-gold/10 text-xs outline-none dark:text-white focus:border-gold/50 transition-all shadow-inner"
+            />
+          </div>
+
+          {/* SEARCH FILTERS - Only visible when focused */}
+          {isSearchFocused && (
+            <div className="absolute top-full left-0 right-0 mt-2 p-2 bg-white dark:bg-pakgreen-deepest border border-zinc-200 dark:border-gold/20 rounded-2xl shadow-2xl z-[110] animate-in fade-in slide-in-from-top-2">
+              <div className="flex gap-1">
+                {(['all', 'quiz', 'note'] as const).map(f => (
+                  <button 
+                    key={f}
+                    onClick={() => setSearchFilter(f)}
+                    className={`flex-grow py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all border ${searchFilter === f ? 'bg-pakgreen dark:bg-gold text-white dark:text-pakgreen border-transparent shadow-md' : 'bg-zinc-50 dark:bg-pakgreen-dark text-zinc-500 border-zinc-100 dark:border-gold/5 hover:bg-zinc-100'}`}
+                  >
+                    {f}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="flex items-center gap-2 sm:gap-4 shrink-0">
@@ -128,12 +159,12 @@ const Navbar: React.FC<NavbarProps> = ({ onNavigate }) => {
         <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setIsMenuOpen(false)}></div>
         <div className={`absolute left-0 top-0 bottom-0 w-[85%] max-w-[300px] bg-white dark:bg-pakgreen-deepest shadow-2xl transition-transform duration-300 ease-out flex flex-col ${isMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
           <div className="p-8 border-b border-zinc-200 dark:border-gold/10 flex flex-col gap-6 bg-zinc-50 dark:bg-pakgreen-dark/50">
-             <div className="flex items-center gap-3">
-                <BookOpen className="h-6 w-6 text-pakgreen dark:text-gold-light" />
-                <span className="text-pakgreen dark:text-gold-light font-black text-sm uppercase tracking-tighter">Navigation</span>
-             </div>
-             <div className="text-center">
-               <span className="text-2xl font-serif font-bold text-pakgreen dark:text-gold-light" style={{ direction: 'rtl' }}>ربِّ زِدْنِي عِلْماً</span>
+             <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <BookOpen className="h-6 w-6 text-pakgreen dark:text-gold-light" />
+                  <span className="text-pakgreen dark:text-gold-light font-heading font-black text-sm uppercase tracking-normal">Navigation</span>
+                </div>
+                <span className="text-xl font-serif font-bold text-pakgreen dark:text-gold-light" style={{ direction: 'rtl' }}>ربِّ زِدْنِي عِلْماً</span>
              </div>
           </div>
           

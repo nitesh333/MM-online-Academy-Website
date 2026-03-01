@@ -1,5 +1,5 @@
 {
   "name": "Professional Academy (MM Online)",
-  "description": "A comprehensive educational platform for Law (LAT, GAT, LLB) and General Admissions (MCAT, ECAT, IELTS) with AI-powered document-to-quiz conversion.",
-  "requestFramePermissions": []
+  "description": "A high-performance educational platform for Law and General Admissions, featuring comprehensive test preparation and study resources.",
+  "requestFramePermissions": ["web-share"]
 }

@@ -1,4 +1,3 @@
-
 import { GoogleGenAI, Type } from "@google/genai";
 import { Question } from "../types";
 
@@ -6,31 +5,30 @@ import { Question } from "../types";
  * Gemini-powered MCQ extraction service.
  */
 export const parseQuizFromText = async (rawText: string): Promise<Partial<Question>[]> => {
-  if (!process.env.API_KEY) {
+  const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
+  if (!apiKey) {
     console.warn("Gemini API Key missing in environment.");
     return [];
   }
 
   try {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const ai = new GoogleGenAI({ apiKey });
     
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
-      contents: `You are an expert academic parser for Professional Academy. Convert the provided document text into a clean JSON array of MCQs.
+      contents: `You are an expert academic parser for Professional Academy (MM Online). 
+      Convert the following document text into a JSON array of MCQs.
       
-      CRITICAL FORMAT RECOGNITION:
-      1. IN-LINE HINTS: If you see "A. Choice ✅" or "**B. Choice**", that is the correct answer.
-      2. FOOTER LETTER: If you see "Correct Answer: B" at the end of a question block, B is the correct answer.
-      3. FOOTER TEXT: If you see "Correct Answer: B) text", B is the correct answer.
-      4. DENSE TEXT: If options are jammed together (e.g. 4B. 7C. 9), split them correctly.
+      CRITICAL FORMAT RECOGNITION (SUPPORT ALL 3):
+      1. IN-LINE HINTS: Look for checkmarks (✅), bold markers (**), or asterisks (*) inside the option text. These mark the correct answer.
+      2. FOOTER KEYS: Look for lines like "Correct Answer: B" or "Ans: C" at the very end of a question block.
+      3. DENSE TEXT: Options might be on the same line (e.g., A. Apple B. Banana). Split them into the array.
 
-      OUTPUT SANITIZATION RULES:
-      - The "text" and "options" strings MUST BE PLAIN TEXT.
-      - REMOVE ALL BOLDING (**), checkmarks (✅), and option letters (A., B., etc.) from the final output strings.
-      - Never leave hints in the options.
-
-      SCHEMA:
-      Map A=0, B=1, C=2, D=3. Always return 4 options.
+      OUTPUT SANITIZATION:
+      - Remove all letters (A., B., etc.) from the option strings.
+      - Remove ALL BOLDING (**) and symbols (✅) from the final strings.
+      - Map A=0, B=1, C=2, D=3 for the "correctAnswer" index.
+      - Ensure exactly 4 options per question.
 
       TEXT TO PROCESS:
       ${rawText.substring(0, 32000)}`,
@@ -41,15 +39,16 @@ export const parseQuizFromText = async (rawText: string): Promise<Partial<Questi
           items: {
             type: Type.OBJECT,
             properties: {
-              text: { type: Type.STRING },
+              text: { type: Type.STRING, description: "The MCQ question statement" },
               options: { 
                 type: Type.ARRAY, 
                 items: { type: Type.STRING },
                 minItems: 4,
-                maxItems: 4
+                maxItems: 4,
+                description: "Array of exactly 4 strings"
               },
-              correctAnswer: { type: Type.INTEGER, minimum: 0, maximum: 3 },
-              explanation: { type: Type.STRING }
+              correctAnswer: { type: Type.INTEGER, minimum: 0, maximum: 3, description: "Index of correct option" },
+              explanation: { type: Type.STRING, description: "Optional explanation text" }
             },
             required: ["text", "options", "correctAnswer"]
           }
@@ -60,9 +59,7 @@ export const parseQuizFromText = async (rawText: string): Promise<Partial<Questi
     const textOutput = response.text;
     if (!textOutput) return [];
 
-    const cleanJson = textOutput.replace(/```json/g, "").replace(/```/g, "").trim();
-    const result = JSON.parse(cleanJson);
-    
+    const result = JSON.parse(textOutput);
     return Array.isArray(result) ? result : [];
   } catch (error) {
     console.error("Gemini Parsing Error:", error);

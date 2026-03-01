@@ -1,34 +1,24 @@
-import { Notification, SubCategory, Topic, Quiz, StudyNote, QuizFeedback } from '../types';
+import { Notification, SubCategory, Topic, Quiz, StudyNote, QuizFeedback, PrivateAd } from '../types';
 
-const API_BASE_URL = './api.php'; 
+const API_BASE_URL = 'https://mmtestpreparation.com/api.php'; 
 
 export const dataService = {
   async request(endpoint: string, method: string = 'GET', body?: any) {
-    const segments = endpoint.split('/').filter(Boolean);
-    const route = segments[0];
-    const id = segments[1];
+    // Convert /endpoint to ?route=endpoint
+    const route = endpoint.split('/')[1];
+    const id = endpoint.split('/')[2];
     
-    // Cache busting
-    const ts = Date.now();
-    let url = `${API_BASE_URL}?route=${encodeURIComponent(route)}&_t=${ts}`;
-    if (id) url += `&id=${encodeURIComponent(id)}`;
+    let url = `${API_BASE_URL}?route=${route}`;
+    if (id) url += `&id=${id}`;
 
     try {
       const response = await fetch(url, {
         method,
-        mode: 'cors',
         headers: { 'Content-Type': 'application/json' },
         body: body ? JSON.stringify(body) : undefined
       });
 
-      const text = await response.text();
-      let data;
-      try {
-        data = JSON.parse(text);
-      } catch (e) {
-        console.error("Malformed Response:", text);
-        throw new Error("Server communication error.");
-      }
+      const data = await response.json();
 
       if (!response.ok) {
         throw new Error(data.error || `System Error: ${response.status}`);
@@ -56,7 +46,6 @@ export const dataService = {
   addCategory: (c: SubCategory) => dataService.request('/categories', 'POST', c),
   deleteCategory: (id: string) => dataService.request(`/categories/${id}`, 'DELETE'),
 
-  // New Topics (Sub-Category) Endpoints
   getTopics: () => dataService.request('/topics'),
   addTopic: (t: Topic) => dataService.request('/topics', 'POST', t),
   deleteTopic: (id: string) => dataService.request(`/topics/${id}`, 'DELETE'),
@@ -73,4 +62,9 @@ export const dataService = {
   getQuizFeedbacks: () => dataService.request('/feedback'),
   updateQuizFeedback: (id: string, updates: Partial<QuizFeedback>) => dataService.request(`/feedback/${id}`, 'PUT', updates),
   deleteQuizFeedback: (id: string) => dataService.request(`/feedback/${id}`, 'DELETE'),
+
+  getPrivateAds: () => dataService.request('/ads'),
+  addPrivateAd: (ad: PrivateAd) => dataService.request('/ads', 'POST', ad),
+  updatePrivateAd: (id: string, updates: Partial<PrivateAd>) => dataService.request(`/ads/${id}`, 'PUT', updates),
+  deletePrivateAd: (id: string) => dataService.request(`/ads/${id}`, 'DELETE'),
 };

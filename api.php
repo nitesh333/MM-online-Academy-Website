@@ -1,6 +1,6 @@
 <?php
 /**
- * Professional Academy Backend API - Enhanced Auto-Initialization
+ * Professional Academy Backend API - Refined Registry
  */
 
 header("Access-Control-Allow-Origin: *");
@@ -23,36 +23,52 @@ try {
     ]);
     $conn->exec("set names utf8mb4"); 
     
-    // AUTO-MIGRATION: Ensure all core tables exist immediately
+    // Core Schema Management
     $conn->exec("CREATE TABLE IF NOT EXISTS admins (id INT AUTO_INCREMENT PRIMARY KEY, username VARCHAR(100) NOT NULL UNIQUE, password VARCHAR(255) NOT NULL)");
-    $conn->exec("CREATE TABLE IF NOT EXISTS topics (id VARCHAR(50) PRIMARY KEY, name VARCHAR(100), categoryId VARCHAR(50))");
     $conn->exec("CREATE TABLE IF NOT EXISTS categories (id VARCHAR(50) PRIMARY KEY, name VARCHAR(100), description TEXT)");
+    $conn->exec("CREATE TABLE IF NOT EXISTS topics (id VARCHAR(50) PRIMARY KEY, name VARCHAR(100), categoryId VARCHAR(50))");
     $conn->exec("CREATE TABLE IF NOT EXISTS feedback (id VARCHAR(50) PRIMARY KEY, quizId VARCHAR(50), quizTitle VARCHAR(255), studentName VARCHAR(100), studentEmail VARCHAR(100), comment TEXT, date VARCHAR(20), isVisible TINYINT(1) DEFAULT 0)");
-    $conn->exec("CREATE TABLE IF NOT EXISTS notifications (id VARCHAR(50) PRIMARY KEY, title VARCHAR(255), date VARCHAR(20), content TEXT, type VARCHAR(50))");
-    $conn->exec("CREATE TABLE IF NOT EXISTS quizzes (id VARCHAR(50) PRIMARY KEY, title VARCHAR(255), subCategoryId VARCHAR(50))");
-    $conn->exec("CREATE TABLE IF NOT EXISTS notes (id VARCHAR(50) PRIMARY KEY, title VARCHAR(255), url LONGTEXT, subCategoryId VARCHAR(50))");
+    $conn->exec("CREATE TABLE IF NOT EXISTS notifications (id VARCHAR(50) PRIMARY KEY, title VARCHAR(255), date VARCHAR(20), content TEXT, type VARCHAR(50), attachmentUrl LONGTEXT, linkedQuizId VARCHAR(50))");
+    $conn->exec("CREATE TABLE IF NOT EXISTS quizzes (id VARCHAR(50) PRIMARY KEY, title VARCHAR(255), subCategoryId VARCHAR(50), topicId VARCHAR(50), orderNumber INT DEFAULT 0, questions LONGTEXT, videoUrl VARCHAR(255))");
+    $conn->exec("CREATE TABLE IF NOT EXISTS notes (id VARCHAR(50) PRIMARY KEY, title VARCHAR(255), url LONGTEXT, subCategoryId VARCHAR(50), topicId VARCHAR(50), type VARCHAR(20))");
+    $conn->exec("CREATE TABLE IF NOT EXISTS ads (id VARCHAR(50) PRIMARY KEY, imageUrl LONGTEXT, text TEXT, clickUrl TEXT, isVisible TINYINT(1) DEFAULT 0, placement VARCHAR(50))");
 
-    // Ensure specific columns exist for News/Notifications
-    try { $conn->exec("ALTER TABLE notifications ADD COLUMN attachmentUrl LONGTEXT"); } catch(Exception $e) {}
-    try { $conn->exec("ALTER TABLE notifications ADD COLUMN linkedQuizId VARCHAR(50)"); } catch(Exception $e) {}
-    
-    // Ensure specific columns exist for Quizzes
-    try { $conn->exec("ALTER TABLE quizzes ADD COLUMN topicId VARCHAR(50)"); } catch(Exception $e) {}
-    try { $conn->exec("ALTER TABLE quizzes ADD COLUMN orderNumber INT DEFAULT 0"); } catch(Exception $e) {}
-    try { $conn->exec("ALTER TABLE quizzes ADD COLUMN questions LONGTEXT"); } catch(Exception $e) {}
-    try { $conn->exec("ALTER TABLE quizzes ADD COLUMN videoUrl VARCHAR(255)"); } catch(Exception $e) {}
+    function seedDefaults($conn) {
+        $defaultCategories = [
+            ['llb-s1', 'LLB Semester 1', 'Foundational subjects and legal systems intro.'],
+            ['llb-s2', 'LLB Semester 2', 'Constitutional law and advanced sociology.'],
+            ['llb-s3', 'LLB Semester 3', 'Criminal law and procedural basics.'],
+            ['llb-s4', 'LLB Semester 4', 'Civil laws and specific legal frameworks.'],
+            ['spsc', 'SPSC', 'Sindh Public Service Commission job test preparation.'],
+            ['mcat', 'MDCAT / MCAT', 'Medical & Dental College Admission Test comprehensive resources.'],
+            ['ecat', 'ECAT', 'Engineering College Admission Test modules.'],
+            ['ielts', 'IELTS', 'English proficiency testing and preparation.'],
+            ['hec', 'HEC / ETC', 'Higher Education Commission and Education Testing Council tests.']
+        ];
+        
+        $stmt = $conn->prepare("INSERT IGNORE INTO categories (id, name, description) VALUES (?, ?, ?)");
+        foreach($defaultCategories as $cat) { $stmt->execute($cat); }
 
-    // Ensure specific columns exist for Notes
-    try { $conn->exec("ALTER TABLE notes ADD COLUMN topicId VARCHAR(50)"); } catch(Exception $e) {}
-    try { $conn->exec("ALTER TABLE notes ADD COLUMN type VARCHAR(20)"); } catch(Exception $e) {}
+        $defaultTopics = [
+            ['top-llb-1', 'Legal Systems', 'llb-s1'],
+            ['top-llb-2', 'Constitutional Law', 'llb-s2'],
+            ['top-mcat-bio', 'Biology', 'mcat'],
+            ['top-mcat-chem', 'Chemistry', 'mcat'],
+            ['top-spsc-gk', 'General Knowledge', 'spsc'],
+            ['top-spsc-eng', 'English', 'spsc']
+        ];
+        $stmtTopic = $conn->prepare("INSERT IGNORE INTO topics (id, name, categoryId) VALUES (?, ?, ?)");
+        foreach($defaultTopics as $topic) { $stmtTopic->execute($topic); }
 
-    // Default admin
-    $stmt = $conn->prepare("INSERT IGNORE INTO admins (id, username, password) VALUES (1, 'mmonlineacademy26@gmail.com', 'mmacademy')");
-    $stmt->execute();
+        $conn->prepare("INSERT IGNORE INTO admins (id, username, password) VALUES (1, 'mmonlineacademy26@gmail.com', 'mmacademy')")->execute();
+    }
+
+    $llbExists = $conn->query("SELECT COUNT(*) FROM categories WHERE id = 'llb-s1'")->fetchColumn();
+    if (!$llbExists) { seedDefaults($conn); }
 
 } catch(PDOException $e) {
     http_response_code(500);
-    echo json_encode(["success" => false, "error" => "DB_CONNECTION_FAILED: " . $e->getMessage()]);
+    echo json_encode(["success" => false, "error" => "DB_OFFLINE: " . $e->getMessage()]);
     exit;
 }
 
@@ -62,28 +78,30 @@ $route = $requestData['route'] ?? '';
 $id = $requestData['id'] ?? '';
 $method = $_SERVER['REQUEST_METHOD'];
 
-if ($route === 'initialize_db' || $route === 'db_test') {
-    echo json_encode(["success" => true, "status" => "Database Verified & Operational"]);
+if ($route === 'initialize_db') {
+    seedDefaults($conn);
+    echo json_encode(["success" => true, "status" => "System Restored"]);
+    exit;
+}
+
+if ($route === 'db_test') {
+    echo json_encode(["success" => true, "status" => "Connected"]);
     exit;
 }
 
 if ($route === 'bulk' && $method === 'GET') {
-    try {
-        $res = [
-            'notifications' => $conn->query("SELECT * FROM notifications ORDER BY id DESC LIMIT 50")->fetchAll() ?: [],
-            'categories' => $conn->query("SELECT * FROM categories")->fetchAll() ?: [],
-            'topics' => $conn->query("SELECT * FROM topics")->fetchAll() ?: [],
-            'quizzes' => $conn->query("SELECT * FROM quizzes ORDER BY orderNumber ASC, id DESC")->fetchAll() ?: [],
-            'notes' => $conn->query("SELECT * FROM notes ORDER BY id DESC")->fetchAll() ?: []
-        ];
-        foreach($res['quizzes'] as &$q) { 
-            $decoded = json_decode($q['questions'] ?? '[]', true);
-            $q['questions'] = is_array($decoded) ? $decoded : [];
-        }
-        echo json_encode($res);
-    } catch (Exception $e) {
-        echo json_encode(['notifications'=>[], 'categories'=>[], 'topics'=>[], 'quizzes'=>[], 'notes'=>[]]);
+    $res = [
+        'notifications' => $conn->query("SELECT * FROM notifications ORDER BY id DESC")->fetchAll() ?: [],
+        'categories' => $conn->query("SELECT * FROM categories")->fetchAll() ?: [],
+        'topics' => $conn->query("SELECT * FROM topics")->fetchAll() ?: [],
+        'quizzes' => $conn->query("SELECT * FROM quizzes ORDER BY orderNumber ASC, id DESC")->fetchAll() ?: [],
+        'notes' => $conn->query("SELECT * FROM notes ORDER BY id DESC")->fetchAll() ?: [],
+        'ads' => $conn->query("SELECT * FROM ads")->fetchAll() ?: []
+    ];
+    foreach($res['quizzes'] as &$q) { 
+        $q['questions'] = json_decode($q['questions'] ?? '[]', true); 
     }
+    echo json_encode($res);
     exit;
 }
 
@@ -94,50 +112,36 @@ $mapping = [
     'quizzes' => 'quizzes', 
     'notes' => 'notes', 
     'feedback' => 'feedback', 
+    'ads' => 'ads',
     'login' => 'admins'
 ];
 
 $table = $mapping[$route] ?? null;
-
-if (!$table) {
-    echo json_encode(["error" => "INVALID_ROUTE: " . $route]);
-    exit;
-}
+if (!$table) { echo json_encode(["error" => "Route Missing"]); exit; }
 
 try {
     if ($method === 'GET') {
-        if ($table === 'quizzes') {
-            $stmt = $id ? $conn->prepare("SELECT * FROM quizzes WHERE id = ?") : $conn->prepare("SELECT * FROM quizzes ORDER BY orderNumber ASC, id DESC");
-        } else {
-            $stmt = $id ? $conn->prepare("SELECT * FROM $table WHERE id = ?") : $conn->prepare("SELECT * FROM $table ORDER BY id DESC");
-        }
+        $stmt = $id ? $conn->prepare("SELECT * FROM $table WHERE id = ?") : $conn->prepare("SELECT * FROM $table ORDER BY id DESC");
         $id ? $stmt->execute([$id]) : $stmt->execute();
         $output = $id ? $stmt->fetch() : $stmt->fetchAll();
         
         if ($table === 'quizzes') {
-            if ($id && $output) { 
-                $output['questions'] = json_decode($output['questions'] ?? '[]', true); 
-            } elseif (!$id && is_array($output)) { 
-                foreach($output as &$r) $r['questions'] = json_decode($r['questions'] ?? '[]', true); 
+            if ($id) {
+                if ($output) $output['questions'] = json_decode($output['questions'] ?? '[]', true);
+            } else {
+                foreach($output as &$q) {
+                    $q['questions'] = json_decode($q['questions'] ?? '[]', true);
+                }
             }
         }
     } elseif ($method === 'POST') {
         if ($route === 'login') {
             $stmt = $conn->prepare("SELECT * FROM admins WHERE username = ? AND password = ?");
             $stmt->execute([strtolower($requestData['username']), $requestData['password']]);
-            $output = $stmt->fetch() ? ["success" => true] : ["success" => false, "error" => "LOGIN_FAILED"];
-        } elseif ($table === 'quizzes') {
-            $stmt = $conn->prepare("REPLACE INTO quizzes (id, title, subCategoryId, topicId, orderNumber, questions, videoUrl) VALUES (?, ?, ?, ?, ?, ?, ?)");
-            $stmt->execute([$requestData['id'], $requestData['title'], $requestData['subCategoryId'], $requestData['topicId'] ?? '', (int)($requestData['orderNumber'] ?? 0), json_encode($requestData['questions']), $requestData['videoUrl'] ?? '']);
-            $output = ["success" => true];
-        } elseif ($table === 'notes') {
-            $stmt = $conn->prepare("REPLACE INTO notes (id, title, url, subCategoryId, topicId, type) VALUES (?, ?, ?, ?, ?, ?)");
-            $stmt->execute([$requestData['id'], $requestData['title'], $requestData['url'], $requestData['subCategoryId'], $requestData['topicId'] ?? '', $requestData['type']]);
-            $output = ["success" => true];
+            $output = $stmt->fetch() ? ["success" => true] : ["success" => false];
         } else {
-            // Generic REPLACE logic for other tables (notifications, categories, etc)
-            unset($requestData['route']);
-            unset($requestData['_t']);
+            unset($requestData['route'], $requestData['_t']);
+            if ($table === 'quizzes' && isset($requestData['questions'])) $requestData['questions'] = json_encode($requestData['questions']);
             $cols = implode(',', array_keys($requestData));
             $p = implode(',', array_fill(0, count($requestData), '?'));
             $stmt = $conn->prepare("REPLACE INTO $table ($cols) VALUES ($p)");
@@ -149,25 +153,16 @@ try {
         $stmt->execute([$id]);
         $output = ["success" => true];
     } elseif ($method === 'PUT') {
-        // Simple update logic for feedback visibility toggle
-        unset($requestData['route']);
-        unset($requestData['_t']);
-        unset($requestData['id']);
-        $setPart = [];
-        $vals = [];
-        foreach($requestData as $key => $val) {
-            $setPart[] = "$key = ?";
-            $vals[] = $val;
-        }
+        unset($requestData['route'], $requestData['_t'], $requestData['id']);
+        $set = []; $vals = [];
+        foreach($requestData as $k => $v) { $set[] = "$k = ?"; $vals[] = $v; }
         $vals[] = $id;
-        $sql = "UPDATE $table SET " . implode(', ', $setPart) . " WHERE id = ?";
-        $stmt = $conn->prepare($sql);
+        $stmt = $conn->prepare("UPDATE $table SET " . implode(', ', $set) . " WHERE id = ?");
         $stmt->execute($vals);
         $output = ["success" => true];
     }
     echo json_encode($output);
 } catch (Exception $e) {
-    http_response_code(400);
-    echo json_encode(["success" => false, "error" => $e->getMessage()]);
+    http_response_code(400); echo json_encode(["success" => false, "error" => $e->getMessage()]);
 }
 ?>

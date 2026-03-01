@@ -65,9 +65,19 @@ export interface Notification {
   linkedQuizId?: string; // ID of quiz to link to this news
 }
 
+export interface PrivateAd {
+  id: string;
+  imageUrl: string;
+  text: string;
+  clickUrl: string;
+  isVisible: boolean;
+  placement: 'header' | 'sidebar' | 'content' | 'footer';
+}
+
 export interface AppState {
   view: 'home' | 'category' | 'quiz' | 'admin' | 'notifications' | 'contact';
   selectedSubCategory?: string;
   selectedQuiz?: string;
+  selectedNewsId?: string;
   isAdmin: boolean;
 }

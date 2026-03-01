@@ -4,8 +4,8 @@ import { Question } from '../types';
 // @ts-ignore
 import * as pdfjsLib from 'pdfjs-dist';
 
-// Use version 5.4.624 to match the index.html import
-pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@5.4.624/build/pdf.worker.min.mjs`;
+// Synchronized worker version for stability
+pdfjsLib.GlobalWorkerOptions.workerSrc = `https://esm.sh/pdfjs-dist@5.4.624/build/pdf.worker.mjs`;
 
 /**
  * Scrub all formatting markers from text to prevent students from seeing "hints"
@@ -51,32 +51,30 @@ export const parserService = {
         }
         return fullText;
       } catch (err) {
-        throw new Error("Failed to read PDF. Ensure the file is not corrupted.");
+        console.error("PDF Read Error:", err);
+        throw new Error("Failed to read PDF. Ensure the file is valid and readable.");
       }
     }
     throw new Error("Unsupported file format.");
   },
 
   parseMCQs(text: string): Partial<Question>[] {
-    // 1. Structural Pre-processing
-    // Force splits before markers to handle "jammed" text (e.g. "...textA. Option")
+    // 1. Structural Pre-processing to handle dense text blocks
     let processed = text
       .replace(/\s+/g, " ") 
-      .replace(/([^\n])\s+([A-D][\.\)])\s/gi, "$1\n$2 ") // Break jammed options
-      .replace(/\s+(Correct\s+Answer:|Ans:|Answer:|Key:)/gi, "\n$1") // Break jammed footers
-      .replace(/\s+(Q(?:uestion)?\s*\d*[\.\:]|\d+[\.\)])/gi, "\n$1") // Break jammed question starts
+      // Force newlines before options that are jammed together (Format 3)
+      .replace(/([^\n])\s+([A-D][\.\)\-\:\s])\s/gi, "$1\n$2 ")
+      // Force newlines before answer keys (Format 2)
+      .replace(/\s+(Correct\s+Answer:|Ans:|Answer:|Key:|Solution:|Explanation:)/gi, "\n$1")
+      // Force newlines before question numbers
+      .replace(/\s+(Q(?:uestion)?\s*\d*[\.\:]|\d+[\.\)])/gi, "\n$1")
       .trim();
     
-    // 2. Split into blocks based on question markers
-    const blocks: string[] = [];
-    // Split by newlines followed by a question marker
+    // Split into question blocks
     const blockSplitter = /\n(?=Q(?:uestion)?\s*\d*[\.\:]|\d+[\.\)])/gi;
     const parts = processed.split(blockSplitter);
     
-    for (const p of parts) {
-      if (p.trim().length > 10) blocks.push(p.trim());
-    }
-
+    const blocks: string[] = parts.map(p => p.trim()).filter(p => p.length > 10);
     const questions: Partial<Question>[] = [];
 
     for (const block of blocks) {
@@ -87,32 +85,40 @@ export const parserService = {
       let rawOptions: { text: string; isCorrect: boolean }[] = [];
       let footerDetectedIndex = -1;
 
-      // Extract footer letter (Handles Format 2 and 3)
-      // Regex looks for "Correct Answer:" followed by A, B, C, or D
-      const footerMatch = block.match(/(?:Correct\s+Answer|Ans|Key)[\s\.:\-\)]+([A-D])(?:[\s\.\:\-\)]|$)/i);
+      // FORMAT 2: Footer Answer Key Detection
+      const footerMatch = block.match(/(?:Correct\s+Answer|Ans|Key|Answer)[\s\.:\-\)]+([A-D])(?:[\s\.\:\-\)]|$)/i);
       if (footerMatch) {
         footerDetectedIndex = footerMatch[1].toUpperCase().charCodeAt(0) - 65;
       }
 
       for (let i = 1; i < lines.length; i++) {
         const line = lines[i];
-        const optMatch = line.match(/^([A-D])[\.\)]\s*(.*)/i);
+        // Match A. A) (A) A- etc.
+        const optMatch = line.match(/^(?:\(?([A-D])[\.\)\-\:\s])\s*(.*)/i);
         
         if (optMatch) {
           let optText = optMatch[2].trim();
-          // Detect hint markers (Format 1: ✅ or bolding)
-          const isCorrect = /[✅✔️☑️]/.test(optText) || line.includes("**");
+          // FORMAT 1: Inline Hint Detection
+          const isCorrect = /[✅✔️☑️]/.test(optText) || line.includes("**") || line.includes("*");
           rawOptions.push({ text: optText, isCorrect });
-        } else if (rawOptions.length === 0 && !/^(?:Correct|Ans|Key|Explanation)/i.test(line)) {
-          // Append to question text if we haven't hit options yet
+        } else if (rawOptions.length === 0 && !/^(?:Correct|Ans|Key|Explanation|Answer|Solution)/i.test(line)) {
           questionText += " " + line;
         }
       }
 
-      // Validation: Must have at least 2 options
+      // FORMAT 3: DENSE FALLBACK (If simple splitting failed)
+      if (rawOptions.length < 2) {
+        const denseRegex = /(?:\(?([A-D])[\.\)\-\:\s])\s*([^A-D\n]+?)(?=\s+\(?([A-D])[\.\)\-\:\s]|$|\n)/gi;
+        let match;
+        while ((match = denseRegex.exec(block)) !== null) {
+          const optText = match[2].trim();
+          rawOptions.push({ text: optText, isCorrect: optText.includes("✅") || optText.includes("**") });
+        }
+      }
+
       if (rawOptions.length < 2) continue;
 
-      // Resolve final correct answer (Priority: Footer > Inline Mark > Default A)
+      // Priority: Footer Key > Inline Hint > Default 0
       let finalCorrectAnswer = 0;
       if (footerDetectedIndex !== -1 && footerDetectedIndex < rawOptions.length) {
         finalCorrectAnswer = footerDetectedIndex;
@@ -121,9 +127,8 @@ export const parserService = {
         if (hintIndex !== -1) finalCorrectAnswer = hintIndex;
       }
 
-      // Final sanitization and padding
       const sanitizedOptions = rawOptions.map(o => sanitizeText(o.text));
-      while (sanitizedOptions.length < 4) sanitizedOptions.push("Option Placeholder");
+      while (sanitizedOptions.length < 4) sanitizedOptions.push(`Placeholder Option ${sanitizedOptions.length + 1}`);
       
       const expMatch = block.match(/(?:Explanation|Reason|Sol|Solution|Exp|Note)[\s\.:\-\)]+([\s\S]+?)$/i);
 

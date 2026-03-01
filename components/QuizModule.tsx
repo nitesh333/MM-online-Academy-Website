@@ -1,17 +1,19 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { CheckCircle, RefreshCw, MessageSquare, Send, Star, Info, ChevronRight, Youtube, ExternalLink, Lightbulb } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { CheckCircle, RefreshCw, MessageSquare, Send, Youtube, ExternalLink, Lightbulb, PlayCircle, ArrowRight, Home } from 'lucide-react';
 import { Quiz, QuizFeedback, SubCategory, Question } from '../types';
 import { dataService } from '../services/dataService';
-import AdSlot from './AdBanner';
 
 interface QuizModuleProps {
   quiz: Quiz;
+  quizzes: Quiz[];
   categories: SubCategory[];
   onComplete: (score: number) => void;
 }
 
-const QuizModule: React.FC<QuizModuleProps> = ({ quiz, categories, onComplete }) => {
+const QuizModule: React.FC<QuizModuleProps> = ({ quiz, quizzes, categories, onComplete }) => {
+  const navigate = useNavigate();
   const [shuffledQuestions, setShuffledQuestions] = useState<Question[]>([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState<(number | null)[]>([]);
@@ -21,8 +23,25 @@ const QuizModule: React.FC<QuizModuleProps> = ({ quiz, categories, onComplete })
   const [feedbackSent, setFeedbackSent] = useState(false);
   const [feedbackForm, setFeedbackForm] = useState({ name: '', email: '', comment: '' });
 
+  const nextQuiz = useMemo(() => {
+    if (!quiz || !quizzes.length) return null;
+    
+    // Series logic: Quizzes in the same sub-category portion, sorted by order number
+    const siblings = quizzes.filter(q => 
+      q.subCategoryId === quiz.subCategoryId && 
+      q.topicId === quiz.topicId
+    ).sort((a, b) => {
+      const oA = Number(a.orderNumber) || 0;
+      const oB = Number(b.orderNumber) || 0;
+      if (oA !== oB) return oA - oB;
+      return a.id.localeCompare(b.id);
+    });
+
+    const currentIndex = siblings.findIndex(s => s.id === quiz.id);
+    return currentIndex !== -1 && currentIndex < siblings.length - 1 ? siblings[currentIndex + 1] : null;
+  }, [quiz, quizzes]);
+
   const initQuiz = useCallback(() => {
-    // 1. HARD GUARD: If no questions, stop immediately to prevent array length errors
     if (!quiz || !quiz.questions || !Array.isArray(quiz.questions) || quiz.questions.length === 0) {
       setShuffledQuestions([]);
       setAnswers([]);
@@ -30,26 +49,19 @@ const QuizModule: React.FC<QuizModuleProps> = ({ quiz, categories, onComplete })
     }
 
     const randomized = quiz.questions.map(q => {
-      // 2. OPTIONS GUARD: Ensure options array is valid
       const options = (q.options && Array.isArray(q.options) && q.options.length > 0) 
         ? q.options 
         : ['A', 'B', 'C', 'D'];
       
       const originalCorrectText = options[q.correctAnswer] || options[0];
-      
       const shuffledOptions = [...options].sort(() => Math.random() - 0.5);
       const newCorrectIndex = Math.max(0, shuffledOptions.indexOf(originalCorrectText));
       
       return { ...q, options: shuffledOptions, correctAnswer: newCorrectIndex };
     });
 
-    // 3. CRITICAL RANGE FIX: Ensure qCount is always a safe, non-negative integer
-    const qCount = Math.max(0, Math.floor(randomized.length || 0));
-    
     setShuffledQuestions(randomized);
-    // Use a conditional check before creating the array
-    setAnswers(qCount > 0 ? new Array(qCount).fill(null) : []);
-    
+    setAnswers(new Array(randomized.length).fill(null));
     setCurrentQuestionIndex(0);
     setCorrectCount(0);
     setIsFinished(false);
@@ -84,7 +96,7 @@ const QuizModule: React.FC<QuizModuleProps> = ({ quiz, categories, onComplete })
       <div className="max-w-4xl mx-auto py-20 text-center">
         <RefreshCw className="h-12 w-12 text-gold animate-spin mx-auto mb-4" />
         <p className="text-zinc-500 dark:text-zinc-400 font-black uppercase tracking-widest text-xs">Preparing Academic Track...</p>
-        <button onClick={() => window.location.hash = '#home'} className="mt-8 text-gold-light font-black uppercase text-[10px] tracking-widest hover:underline">Return to Home</button>
+        <button onClick={() => navigate('/')} className="mt-8 text-gold-light font-black uppercase text-[10px] tracking-widest hover:underline">Return to Home</button>
       </div>
     );
   }
@@ -95,29 +107,70 @@ const QuizModule: React.FC<QuizModuleProps> = ({ quiz, categories, onComplete })
         <div className="bg-pakgreen dark:bg-pakgreen-dark rounded-[40px] shadow-2xl border-4 border-gold/20 p-8 sm:p-16 text-center relative overflow-hidden">
           <div className="absolute inset-0 islamic-pattern opacity-10"></div>
           <div className="relative z-10">
-            <h2 className="text-3xl sm:text-5xl font-black text-white mb-4 uppercase tracking-tighter">Assessment Result</h2>
+            <h2 className="text-3xl sm:text-5xl font-heading font-black text-white mb-4 uppercase tracking-normal">Assessment Result</h2>
             <div className="mb-14 p-12 bg-white/5 border-2 border-gold/20 rounded-[48px] shadow-inner flex flex-col items-center">
-               <span className="text-7xl sm:text-9xl font-black text-white dark:text-gold-light tracking-tighter">{percentage}%</span>
+               <span className="text-7xl sm:text-9xl font-heading font-black text-white dark:text-gold-light tracking-normal">{percentage}%</span>
             </div>
             
+            <div className="mb-12 animate-in zoom-in duration-700 delay-300">
+              {nextQuiz ? (
+                <button 
+                  onClick={() => navigate(`/quiz/${nextQuiz.id}`)}
+                  className="group relative w-full p-8 bg-gold-light/20 border-2 border-gold-light rounded-[32px] overflow-hidden transition-all hover:scale-[1.02] shadow-xl"
+                >
+                   <div className="absolute top-0 right-0 p-4 opacity-10">
+                     <PlayCircle className="h-24 w-24 text-gold-light" />
+                   </div>
+                   <div className="relative z-10 flex flex-col sm:flex-row items-center justify-between gap-6">
+                      <div className="text-left">
+                        <span className="text-[10px] font-black uppercase tracking-[0.4em] text-gold-light mb-2 block">Series Continues</span>
+                        <h4 className="text-xl font-heading font-black text-white uppercase tracking-normal">{nextQuiz.title}</h4>
+                      </div>
+                      <div className="px-10 py-5 bg-gold-light text-pakgreen rounded-2xl font-black uppercase text-[11px] tracking-widest flex items-center gap-3 shadow-lg group-hover:shadow-gold-light/20">
+                        Start Next Assessment <ArrowRight className="h-5 w-5 group-hover:translate-x-2 transition-transform" />
+                      </div>
+                   </div>
+                </button>
+              ) : (
+                <button 
+                  onClick={() => navigate('/')}
+                  className="group relative w-full p-8 bg-white/5 border-2 border-white/20 rounded-[32px] overflow-hidden transition-all hover:scale-[1.02] shadow-xl"
+                >
+                   <div className="relative z-10 flex flex-col sm:flex-row items-center justify-between gap-6">
+                      <div className="text-left">
+                        <span className="text-[10px] font-black uppercase tracking-[0.4em] text-zinc-400 mb-2 block">Track Completed</span>
+                        <h4 className="text-xl font-heading font-black text-white uppercase tracking-normal">End of Series</h4>
+                      </div>
+                      <div className="px-10 py-5 bg-white text-pakgreen rounded-2xl font-black uppercase text-[11px] tracking-widest flex items-center gap-3 shadow-lg">
+                        Return to Academy <Home className="h-5 w-5" />
+                      </div>
+                   </div>
+                </button>
+              )}
+            </div>
+
             <div className="mb-12 p-8 bg-gold-light/10 border-2 border-gold/20 rounded-[32px] flex flex-col items-center">
                <Youtube className="h-10 w-10 text-red-500 mb-4" />
-               <h4 className="text-gold-light font-black uppercase text-sm mb-2 tracking-widest">Master your preparation</h4>
-               <p className="text-[10px] font-bold text-white/70 uppercase tracking-widest mb-6">Watch expert lectures and past paper solutions on our channel.</p>
+               <h4 className="text-gold-light font-heading font-black uppercase text-sm mb-2 tracking-widest">
+                 {quiz.videoUrl ? "Watch Solution Lecture" : "Master your preparation"}
+               </h4>
+               <p className="text-[10px] font-bold text-white/70 uppercase tracking-widest mb-6">
+                 {quiz.videoUrl ? "Watch the detailed explanation for this assessment." : "Watch expert lectures and past paper solutions on our channel."}
+               </p>
                <a 
-                 href="https://www.youtube.com/channel/UCM2ZBxpqZZs95L2KYxAcSaQ" 
+                 href={quiz.videoUrl || "https://www.youtube.com/channel/UCM2ZBxpqZZs95L2KYxAcSaQ"} 
                  target="_blank" 
                  rel="noopener noreferrer"
                  className="px-10 py-5 bg-red-600 hover:bg-red-700 text-white rounded-2xl text-[11px] font-black uppercase tracking-[0.2em] flex items-center gap-3 transition-all shadow-xl hover:scale-105"
                >
-                 Visit our YouTube Channel <ExternalLink className="h-4 w-4" />
+                 {quiz.videoUrl ? "Watch Solution" : "Visit our YouTube Channel"} <ExternalLink className="h-4 w-4" />
                </a>
             </div>
 
             {!feedbackSent ? (
               <div className="mb-12 text-left bg-white p-8 rounded-[32px] border-4 border-gold/10 shadow-xl">
                 <form onSubmit={handleFeedbackSubmit}>
-                  <h4 className="text-pakgreen font-black uppercase text-sm mb-6 flex items-center gap-3">
+                  <h4 className="text-pakgreen font-heading font-black uppercase text-sm mb-6 flex items-center gap-3">
                     <div className="bg-pakgreen p-2 rounded-lg text-white"><MessageSquare className="h-4 w-4" /></div> 
                     Submit Feedback
                   </h4>
@@ -144,7 +197,7 @@ const QuizModule: React.FC<QuizModuleProps> = ({ quiz, categories, onComplete })
               <button onClick={initQuiz} className="flex-grow py-6 bg-gold-light text-pakgreen rounded-2xl font-black uppercase tracking-[0.3em] flex items-center justify-center gap-4 shadow-2xl hover:scale-105 transition-transform">
                 <RefreshCw className="h-5 w-5" /> Retake Track
               </button>
-              <button onClick={() => window.location.hash = '#home'} className="flex-grow py-6 bg-white/10 text-white rounded-2xl font-black uppercase tracking-[0.3em] border border-white/20 hover:bg-white/20 transition-colors">
+              <button onClick={() => navigate('/')} className="flex-grow py-6 bg-white/10 text-white rounded-2xl font-black uppercase tracking-[0.3em] border border-white/20 hover:bg-white/20 transition-colors">
                 Exit Track
               </button>
             </div>
@@ -163,7 +216,7 @@ const QuizModule: React.FC<QuizModuleProps> = ({ quiz, categories, onComplete })
     <div className="max-w-4xl mx-auto px-4 animate-in fade-in duration-500 pb-20">
       <div className="mb-12 border-b-4 border-gold/20 pb-8 flex justify-between items-end">
         <div>
-          <h2 className="text-2xl font-black text-pakgreen dark:text-gold-light uppercase tracking-tighter">{quiz.title}</h2>
+          <h2 className="text-2xl font-heading font-black text-pakgreen dark:text-gold-light uppercase tracking-normal">{quiz.title}</h2>
           <p className="text-[11px] text-zinc-500 dark:text-zinc-400 font-black uppercase tracking-[0.4em] mt-2">Item {currentQuestionIndex + 1} / {shuffledQuestions.length}</p>
         </div>
         <div className="bg-pakgreen dark:bg-gold-light/10 px-6 py-2 rounded-full text-[10px] font-black text-white dark:text-gold-light uppercase">Mock Assessment</div>
@@ -199,10 +252,9 @@ const QuizModule: React.FC<QuizModuleProps> = ({ quiz, categories, onComplete })
         {selectedAnswer !== null && (
           <div className="mt-14 flex flex-col items-center w-full space-y-8">
             
-            {/* EXPLANATION BOX */}
             {currentQuestion.explanation && currentQuestion.explanation.trim().length > 3 && (
               <div className="w-full text-left p-8 bg-blue-50 dark:bg-blue-900/20 border-l-8 border-blue-500 rounded-r-3xl animate-in fade-in slide-in-from-top-6 shadow-lg">
-                 <h4 className="flex items-center gap-3 text-blue-600 dark:text-blue-400 font-black uppercase text-sm tracking-widest mb-4">
+                 <h4 className="flex items-center gap-3 text-blue-600 dark:text-blue-400 font-heading font-black uppercase text-sm tracking-widest mb-4">
                    <Lightbulb className="h-6 w-6 fill-current animate-pulse" /> Academy Explanation
                  </h4>
                  <p className="text-zinc-700 dark:text-zinc-200 text-sm font-bold leading-relaxed">

@@ -1,3 +1,11 @@
+@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700;900&family=Bebas+Neue&display=swap');
+
+@theme {
+  --font-sans: "Roboto", ui-sans-serif, system-ui, sans-serif;
+  --font-heading: "Bebas Neue", ui-sans-serif, system-ui, sans-serif;
+}
+
 /* Base styles for Professional Academy */
 :root {
   color-scheme: dark;
@@ -7,7 +15,7 @@ body {
   margin: 0;
   padding: 0;
   background-color: #09090b;
-  font-family: 'Poppins', sans-serif;
+  font-family: 'Roboto', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
