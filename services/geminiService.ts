@@ -4,7 +4,7 @@ import { Question } from "../types";
 /**
  * Gemini-powered MCQ extraction service.
  */
-export const parseQuizFromText = async (rawText: string): Promise<Partial<Question>[]> => {
+export const parseQuizFromText = async (rawText: string, imageBase64?: string): Promise<Partial<Question>[]> => {
   const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
   if (!apiKey) {
     console.warn("Gemini API Key missing in environment.");
@@ -14,24 +14,41 @@ export const parseQuizFromText = async (rawText: string): Promise<Partial<Questi
   try {
     const ai = new GoogleGenAI({ apiKey });
     
-    const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: `You are an expert academic parser for Professional Academy (MM Online). 
-      Convert the following document text into a JSON array of MCQs.
+    const parts: any[] = [];
+    
+    if (imageBase64) {
+      parts.push({
+        inlineData: {
+          data: imageBase64.split(',')[1] || imageBase64,
+          mimeType: "image/png"
+        }
+      });
+    }
+
+    const prompt = `You are an expert academic parser for Professional Academy (MM Online). 
+      Convert the following ${imageBase64 ? 'image' : 'document text'} into a JSON array of MCQs.
       
-      CRITICAL FORMAT RECOGNITION (SUPPORT ALL 3):
+      CRITICAL FORMAT RECOGNITION (SUPPORT ALL VARIANTS):
       1. IN-LINE HINTS: Look for checkmarks (✅), bold markers (**), or asterisks (*) inside the option text. These mark the correct answer.
-      2. FOOTER KEYS: Look for lines like "Correct Answer: B" or "Ans: C" at the very end of a question block.
-      3. DENSE TEXT: Options might be on the same line (e.g., A. Apple B. Banana). Split them into the array.
+      2. FOOTER KEYS: Look for lines like "Correct Answer: B", "Ans: c", or "Answer: 2" at the end of a question block.
+      3. DENSE TEXT: Options might be on the same line (e.g., a) Apple b) Banana). Split them into the array.
+      4. MATH SYMBOLS: Preserve mathematical notation like x^2, √x, fractions, and equations exactly as they appear.
+      5. CASE SENSITIVITY: Handle both uppercase (A, B, C, D) and lowercase (a, b, c, d) labels.
 
       OUTPUT SANITIZATION:
-      - Remove all letters (A., B., etc.) from the option strings.
+      - Remove all labels (A., B., a), b), etc.) from the option strings.
       - Remove ALL BOLDING (**) and symbols (✅) from the final strings.
-      - Map A=0, B=1, C=2, D=3 for the "correctAnswer" index.
-      - Ensure exactly 4 options per question.
+      - Map A/a=0, B/b=1, C/c=2, D/d=3 for the "correctAnswer" index.
+      - Ensure exactly 4 options per question. If fewer are found, leave the remaining as empty strings.
+      - If "Correct Answer" is given as a value (e.g. "Correct Answer: 5") and 5 is option 'b', set correctAnswer to 1.
 
-      TEXT TO PROCESS:
-      ${rawText.substring(0, 32000)}`,
+      ${rawText ? `TEXT TO PROCESS:\n${rawText.substring(0, 32000)}` : 'PROCESS THE ATTACHED IMAGE.'}`;
+
+    parts.push({ text: prompt });
+
+    const response = await ai.models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: { parts },
       config: {
         responseMimeType: "application/json",
         responseSchema: {

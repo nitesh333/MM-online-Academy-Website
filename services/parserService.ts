@@ -55,7 +55,15 @@ export const parserService = {
         throw new Error("Failed to read PDF. Ensure the file is valid and readable.");
       }
     }
-    throw new Error("Unsupported file format.");
+    if (file.type.startsWith("image/")) {
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (e) => resolve(e.target?.result as string);
+        reader.readAsDataURL(file);
+      });
+    }
+
+    throw new Error("Unsupported file format. Please upload PDF, DOCX, or Image.");
   },
 
   parseMCQs(text: string): Partial<Question>[] {

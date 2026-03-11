@@ -28,10 +28,22 @@ try {
     $conn->exec("CREATE TABLE IF NOT EXISTS categories (id VARCHAR(50) PRIMARY KEY, name VARCHAR(100), description TEXT)");
     $conn->exec("CREATE TABLE IF NOT EXISTS topics (id VARCHAR(50) PRIMARY KEY, name VARCHAR(100), categoryId VARCHAR(50))");
     $conn->exec("CREATE TABLE IF NOT EXISTS feedback (id VARCHAR(50) PRIMARY KEY, quizId VARCHAR(50), quizTitle VARCHAR(255), studentName VARCHAR(100), studentEmail VARCHAR(100), comment TEXT, date VARCHAR(20), isVisible TINYINT(1) DEFAULT 0)");
-    $conn->exec("CREATE TABLE IF NOT EXISTS notifications (id VARCHAR(50) PRIMARY KEY, title VARCHAR(255), date VARCHAR(20), content TEXT, type VARCHAR(50), attachmentUrl LONGTEXT, linkedQuizId VARCHAR(50))");
-    $conn->exec("CREATE TABLE IF NOT EXISTS quizzes (id VARCHAR(50) PRIMARY KEY, title VARCHAR(255), subCategoryId VARCHAR(50), topicId VARCHAR(50), orderNumber INT DEFAULT 0, questions LONGTEXT, videoUrl VARCHAR(255))");
-    $conn->exec("CREATE TABLE IF NOT EXISTS notes (id VARCHAR(50) PRIMARY KEY, title VARCHAR(255), url LONGTEXT, subCategoryId VARCHAR(50), topicId VARCHAR(50), type VARCHAR(20))");
+    $conn->exec("CREATE TABLE IF NOT EXISTS notifications (id VARCHAR(50) PRIMARY KEY, title VARCHAR(255), date VARCHAR(20), content TEXT, type VARCHAR(50), attachmentUrl LONGTEXT, linkedQuizId VARCHAR(50), seoKeywords TEXT, seoTags TEXT)");
+    $conn->exec("CREATE TABLE IF NOT EXISTS quizzes (id VARCHAR(50) PRIMARY KEY, title VARCHAR(255), subCategoryId VARCHAR(50), topicId VARCHAR(50), orderNumber INT DEFAULT 0, questions LONGTEXT, videoUrl VARCHAR(255), seoKeywords TEXT, seoTags TEXT)");
+    $conn->exec("CREATE TABLE IF NOT EXISTS notes (id VARCHAR(50) PRIMARY KEY, title VARCHAR(255), url LONGTEXT, subCategoryId VARCHAR(50), topicId VARCHAR(50), type VARCHAR(20), seoKeywords TEXT, seoTags TEXT)");
     $conn->exec("CREATE TABLE IF NOT EXISTS ads (id VARCHAR(50) PRIMARY KEY, imageUrl LONGTEXT, text TEXT, clickUrl TEXT, isVisible TINYINT(1) DEFAULT 0, placement VARCHAR(50))");
+    $conn->exec("CREATE TABLE IF NOT EXISTS articles (id VARCHAR(50) PRIMARY KEY, title VARCHAR(255), content LONGTEXT, imageUrl LONGTEXT, category VARCHAR(100), date VARCHAR(20), author VARCHAR(100), seoKeywords TEXT, seoTags TEXT)");
+
+    // Migration: Add columns if they don't exist
+    $tablesToUpdate = ['notifications', 'quizzes', 'notes', 'articles'];
+    foreach ($tablesToUpdate as $table) {
+        try {
+            $conn->exec("ALTER TABLE $table ADD COLUMN seoKeywords TEXT");
+            $conn->exec("ALTER TABLE $table ADD COLUMN seoTags TEXT");
+        } catch (Exception $e) {
+            // Columns likely already exist
+        }
+    }
 
     function seedDefaults($conn) {
         $defaultCategories = [
@@ -96,7 +108,8 @@ if ($route === 'bulk' && $method === 'GET') {
         'topics' => $conn->query("SELECT * FROM topics")->fetchAll() ?: [],
         'quizzes' => $conn->query("SELECT * FROM quizzes ORDER BY orderNumber ASC, id DESC")->fetchAll() ?: [],
         'notes' => $conn->query("SELECT * FROM notes ORDER BY id DESC")->fetchAll() ?: [],
-        'ads' => $conn->query("SELECT * FROM ads")->fetchAll() ?: []
+        'ads' => $conn->query("SELECT * FROM ads")->fetchAll() ?: [],
+        'articles' => $conn->query("SELECT * FROM articles ORDER BY id DESC")->fetchAll() ?: []
     ];
     foreach($res['quizzes'] as &$q) { 
         $q['questions'] = json_decode($q['questions'] ?? '[]', true); 
@@ -113,6 +126,7 @@ $mapping = [
     'notes' => 'notes', 
     'feedback' => 'feedback', 
     'ads' => 'ads',
+    'articles' => 'articles',
     'login' => 'admins'
 ];
 

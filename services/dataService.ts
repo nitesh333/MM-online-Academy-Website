@@ -1,4 +1,4 @@
-import { Notification, SubCategory, Topic, Quiz, StudyNote, QuizFeedback, PrivateAd } from '../types';
+import { Notification, SubCategory, Topic, Quiz, StudyNote, QuizFeedback, PrivateAd, Article } from '../types';
 
 const API_BASE_URL = 'https://mmtestpreparation.com/api.php'; 
 
@@ -18,7 +18,14 @@ export const dataService = {
         body: body ? JSON.stringify(body) : undefined
       });
 
-      const data = await response.json();
+      const text = await response.text();
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (e) {
+        console.error("JSON Parse Error. Response was:", text.substring(0, 100));
+        throw new Error("Invalid server response format");
+      }
 
       if (!response.ok) {
         throw new Error(data.error || `System Error: ${response.status}`);
@@ -67,4 +74,8 @@ export const dataService = {
   addPrivateAd: (ad: PrivateAd) => dataService.request('/ads', 'POST', ad),
   updatePrivateAd: (id: string, updates: Partial<PrivateAd>) => dataService.request(`/ads/${id}`, 'PUT', updates),
   deletePrivateAd: (id: string) => dataService.request(`/ads/${id}`, 'DELETE'),
+
+  getArticles: () => dataService.request('/articles'),
+  addArticle: (a: Article) => dataService.request('/articles', 'POST', a),
+  deleteArticle: (id: string) => dataService.request(`/articles/${id}`, 'DELETE'),
 };

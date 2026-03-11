@@ -1,5 +1,13 @@
 import React from 'react';
+import { Facebook, Instagram, Linkedin, Music as TiktokIcon } from 'lucide-react';
 import { SubCategory, Quiz, Notification } from './types';
+
+export const socialLinks = [
+  { label: 'Facebook', icon: Facebook, url: 'https://www.facebook.com/MirpurkhasAliTalpurTown/', color: 'hover:text-blue-600' },
+  { label: 'Instagram', icon: Instagram, url: 'https://www.instagram.com/majid.maqsood01/?hl=en', color: 'hover:text-pink-600' },
+  { label: 'LinkedIn', icon: Linkedin, url: 'https://www.linkedin.com/in/majid-maqsood-633444374/', color: 'hover:text-blue-700' },
+  { label: 'TikTok', icon: TiktokIcon, url: 'https://www.tiktok.com/@majid.maqsood8', color: 'hover:text-zinc-900 dark:hover:text-white' }
+];
 
 export const LAW_SUBCATEGORIES: SubCategory[] = [
   { id: 'llb-s1', name: 'LLB Semester 1', description: 'Notes and tests for introductory law subjects.' },
@@ -13,7 +21,9 @@ export const GENERAL_SUBCATEGORIES: SubCategory[] = [
   { id: 'ecat', name: 'ECAT', description: 'Engineering College Admission Test resources and modules.' },
   { id: 'ielts', name: 'IELTS', description: 'English proficiency testing and preparation tracks.' },
   { id: 'spsc', name: 'SPSC', description: 'Sindh Public Service Commission job test preparation.' },
-  { id: 'hec', name: 'HEC/ETC', description: 'Higher Education Commission and Education Testing Council tests.' },
+  { id: 'sts', name: 'STS', description: 'SIBA Testing Services preparation modules.' },
+  { id: 'hec', name: 'HEC/ ETC', description: 'Higher Education Commission and Education Testing Council tests.' },
+  { id: 'pphi', name: 'PPHI', description: 'Peoples Primary Healthcare Initiative recruitment tests.' },
 ];
 
 export const INITIAL_NOTIFICATIONS: Notification[] = [

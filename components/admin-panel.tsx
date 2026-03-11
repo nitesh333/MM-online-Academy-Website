@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Trash2, Loader2, Database, Activity, FileText, CheckCircle2, UploadCloud, MessageSquare, Image as ImageIcon, Plus, Settings, Eye, EyeOff, LogOut, Download, FolderTree, ListOrdered, Edit3, XCircle, Trash, Type as TypeIcon, Sparkles, Image as ImageLucide, Megaphone, ChevronRight, Clock, Mail } from 'lucide-react';
-import { Notification, SubCategory, Topic, Quiz, Question, QuizFeedback, StudyNote, PrivateAd } from '../types';
+import { Notification, SubCategory, Topic, Quiz, Question, QuizFeedback, StudyNote, PrivateAd, Article } from '../types';
 import { dataService } from '../services/dataService';
 import { parserService } from '../services/parserService';
 import { parseQuizFromText } from '../services/geminiService';
@@ -21,6 +21,61 @@ const AdminSelect = ({ children, className, ...props }: React.SelectHTMLAttribut
     {children}
   </select>
 );
+
+const TagInput = ({ value, onChange, placeholder }: { value: string, onChange: (val: string) => void, placeholder?: string }) => {
+  const [inputValue, setInputValue] = useState('');
+  const tags = value ? value.split(',').map(t => t.trim()).filter(t => t !== '') : [];
+
+  const addTag = (val: string) => {
+    const trimmed = val.trim().replace(/,$/, '');
+    if (trimmed && !tags.includes(trimmed)) {
+      const newTags = [...tags, trimmed];
+      onChange(newTags.join(', '));
+    }
+    setInputValue('');
+  };
+
+  const removeTag = (index: number) => {
+    const newTags = tags.filter((_, i) => i !== index);
+    onChange(newTags.join(', '));
+  };
+
+  return (
+    <div className="flex flex-wrap gap-2 p-3 bg-slate-800 border border-slate-700 rounded-xl min-h-[44px] items-center focus-within:border-gold/50 transition-all">
+      {tags.map((tag, i) => (
+        <span key={i} className="bg-gold/10 text-gold-light px-3 py-1 rounded-full text-[9px] font-black uppercase flex items-center gap-2 border border-gold/20">
+          {tag}
+          <button type="button" onClick={() => removeTag(i)} className="hover:text-white transition-colors">
+            <XCircle className="h-3 w-3" />
+          </button>
+        </span>
+      ))}
+      <input
+        type="text"
+        value={inputValue}
+        onChange={(e) => {
+          const val = e.target.value;
+          if (val.endsWith(',')) {
+            addTag(val);
+          } else {
+            setInputValue(val);
+          }
+        }}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            addTag(inputValue);
+          } else if (e.key === 'Backspace' && !inputValue && tags.length > 0) {
+            removeTag(tags.length - 1);
+          }
+        }}
+        onBlur={() => addTag(inputValue)}
+        placeholder={tags.length === 0 ? placeholder : ''}
+        className="flex-grow bg-transparent outline-none text-white text-xs min-w-[120px] placeholder:text-zinc-500"
+      />
+    </div>
+  );
+};
 
 interface AdminPanelProps {
   notifications: Notification[];
@@ -42,6 +97,9 @@ interface AdminPanelProps {
   onAddAd: (ad: PrivateAd) => Promise<void>;
   onDeleteAd: (id: string) => Promise<void>;
   onUpdateAd: (id: string, updates: Partial<PrivateAd>) => Promise<void>;
+  articles: Article[];
+  onAddArticle: (a: Article) => Promise<void>;
+  onDeleteArticle: (id: string) => Promise<void>;
 }
 
 const AdminPanel: React.FC<AdminPanelProps> = ({ 
@@ -51,9 +109,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   onAddTopic = () => {}, onDeleteTopic = () => {},
   onAddQuiz, onDeleteQuiz,
   onAddNote, onDeleteNote,
-  ads, onAddAd, onDeleteAd, onUpdateAd
+  ads, onAddAd, onDeleteAd, onUpdateAd,
+  articles, onAddArticle, onDeleteArticle
 }) => {
-  const [activeTab, setActiveTab] = useState<'notifications' | 'categories' | 'topics' | 'quizzes' | 'notes' | 'moderation' | 'inquiries' | 'ads' | 'account'>('notifications');
+  const [activeTab, setActiveTab] = useState<'notifications' | 'categories' | 'topics' | 'quizzes' | 'notes' | 'articles' | 'moderation' | 'inquiries' | 'ads' | 'account'>('notifications');
   const [isRepairing, setIsRepairing] = useState(false);
   const [dbStatus, setDbStatus] = useState<string>('Testing...');
   const [feedbacks, setFeedbacks] = useState<QuizFeedback[]>([]);
@@ -65,8 +124,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   
   const newsAttachmentRef = useRef<HTMLInputElement>(null);
   const [isPublishingNews, setIsPublishingNews] = useState(false);
-  const [newsForm, setNewsForm] = useState<{title: string; content: string; type: Notification['type']; attachmentUrl: string; linkedQuizId: string}>({ 
-    title: '', content: '', type: 'News', attachmentUrl: '', linkedQuizId: '' 
+  const [newsForm, setNewsForm] = useState<{title: string; content: string; type: Notification['type']; attachmentUrl: string; linkedQuizId: string; seoKeywords: string; seoTags: string}>({ 
+    title: '', content: '', type: 'News', attachmentUrl: '', linkedQuizId: '', seoKeywords: '', seoTags: '' 
   });
 
   const [catForm, setCatForm] = useState({ name: '', description: '' });
@@ -82,17 +141,21 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     orderNumber: number;
     videoUrl: string;
     questions: Question[];
+    seoKeywords: string;
+    seoTags: string;
   }>({
     title: '',
     subCategoryId: '',
     topicId: '',
     orderNumber: 0,
     videoUrl: '',
-    questions: [{ id: `q_init_${Date.now()}`, text: '', options: ['', '', '', ''], correctAnswer: 0, explanation: '' }]
+    questions: [{ id: `q_init_${Date.now()}`, text: '', options: ['', '', '', ''], correctAnswer: 0, explanation: '' }],
+    seoKeywords: '',
+    seoTags: ''
   });
 
-  const [noteForm, setNoteForm] = useState<{ title: string; subCategoryId: string; topicId: string; fileData: string }>({
-    title: '', subCategoryId: '', topicId: '', fileData: ''
+  const [noteForm, setNoteForm] = useState<{ title: string; subCategoryId: string; topicId: string; fileData: string; seoKeywords: string; seoTags: string }>({
+    title: '', subCategoryId: '', topicId: '', fileData: '', seoKeywords: '', seoTags: ''
   });
   const [isUploadingNote, setIsUploadingNote] = useState(false);
   const noteFileRef = useRef<HTMLInputElement>(null);
@@ -103,6 +166,13 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   const [isPublishingAd, setIsPublishingAd] = useState(false);
   const adImageRef = useRef<HTMLInputElement>(null);
   const [editingAdId, setEditingAdId] = useState<string | null>(null);
+
+  const [articleForm, setArticleForm] = useState<{title: string; content: string; category: string; imageUrl: string; seoKeywords: string; seoTags: string}>({
+    title: '', content: '', category: '', imageUrl: '', seoKeywords: '', seoTags: ''
+  });
+  const [isPublishingArticle, setIsPublishingArticle] = useState(false);
+  const articleImageRef = useRef<HTMLInputElement>(null);
+  const [editingArticleId, setEditingArticleId] = useState<string | null>(null);
 
   useEffect(() => {
     if (categories.length > 0) {
@@ -158,8 +228,14 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     setParseError(null);
     setParsingStep('Reading File...');
     try {
-      const text = await parserService.extractTextFromFile(file);
-      await processContent(text);
+      const content = await parserService.extractTextFromFile(file);
+      
+      // If it's an image (base64 string), process it multimodally
+      if (content.startsWith('data:image/')) {
+        await processContent('', content);
+      } else {
+        await processContent(content);
+      }
     } catch (err: any) { 
       setParseError(err.message); 
       setIsParsing(false);
@@ -168,11 +244,13 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     }
   };
 
-  const processContent = async (text: string) => {
-    setParsingStep('Extracting MCQs...');
+  const processContent = async (text: string, imageBase64?: string) => {
+    setParsingStep(imageBase64 ? 'Analyzing Image...' : 'Extracting MCQs...');
     try {
-      const aiResults = await parseQuizFromText(text);
+      const aiResults = await parseQuizFromText(text, imageBase64);
       if (!aiResults || aiResults.length === 0) {
+        if (imageBase64) throw new Error("Could not extract questions from image.");
+        
         setParsingStep('Running Local Scan...');
         const fbResults = parserService.parseMCQs(text);
         if (!fbResults || fbResults.length === 0) throw new Error("Document structure not recognized.");
@@ -181,9 +259,13 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
         populateQuizForm(aiResults);
       }
     } catch (err: any) {
-      const fbResults = parserService.parseMCQs(text);
-      if (fbResults.length > 0) populateQuizForm(fbResults);
-      else setParseError(err.message || "Parsing Failed");
+      if (text) {
+        const fbResults = parserService.parseMCQs(text);
+        if (fbResults.length > 0) populateQuizForm(fbResults);
+        else setParseError(err.message || "Parsing Failed");
+      } else {
+        setParseError(err.message || "Parsing Failed");
+      }
     } finally {
       setIsParsing(false);
       setParsingStep('');
@@ -225,7 +307,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
         options: Array.isArray(q.options) ? [...q.options] : ['', '', '', ''],
         correctAnswer: q.correctAnswer,
         explanation: q.explanation || ''
-      }))
+      })),
+      seoKeywords: quiz.seoKeywords || '',
+      seoTags: quiz.seoTags || ''
     });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -238,7 +322,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       topicId: '', 
       orderNumber: 0, 
       videoUrl: '', 
-      questions: [{ id: `q_reset_${Date.now()}`, text: '', options: ['', '', '', ''], correctAnswer: 0, explanation: '' }] 
+      questions: [{ id: `q_reset_${Date.now()}`, text: '', options: ['', '', '', ''], correctAnswer: 0, explanation: '' }],
+      seoKeywords: '',
+      seoTags: ''
     });
   };
 
@@ -286,6 +372,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
           { id: 'topics', label: 'Sub Categories' },
           { id: 'quizzes', label: 'Assessments' },
           { id: 'notes', label: 'Study Library' },
+          { id: 'articles', label: 'Articles' },
           { id: 'ads', label: 'Private Ads' },
           { id: 'moderation', label: 'Reviews' },
           { id: 'inquiries', label: 'Inquiries' },
@@ -312,14 +399,14 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                 const localDate = new Date().toLocaleDateString('en-PK', { day: '2-digit', month: 'short', year: 'numeric' });
                 const newNotif: Notification = { id: editingNotificationId || `news_${Date.now()}`, date: localDate, ...newsForm };
                 await onAddNotification(newNotif); 
-                setNewsForm({ title: '', content: '', type: 'News', attachmentUrl: '', linkedQuizId: '' });
+                setNewsForm({ title: '', content: '', type: 'News', attachmentUrl: '', linkedQuizId: '', seoKeywords: '', seoTags: '' });
                 setEditingNotificationId(null);
                 alert("Bulletin Broadcasted.");
               } catch (err) { alert("Failed."); } finally { setIsPublishingNews(false); }
             }} className="bg-slate-800/30 p-8 rounded-3xl border border-slate-700 space-y-6">
                <h4 className="text-white font-heading font-black text-xs uppercase tracking-normal flex justify-between items-center mb-2">
                   <span className="flex items-center gap-2"><Megaphone className="h-4 w-4 text-gold-light" /> institutional dispatch</span>
-                  {editingNotificationId && <button type="button" onClick={() => { setEditingNotificationId(null); setNewsForm({ title: '', content: '', type: 'News', attachmentUrl: '', linkedQuizId: '' }); }} className="text-rose-500 text-[9px]">Cancel Edit</button>}
+                  {editingNotificationId && <button type="button" onClick={() => { setEditingNotificationId(null); setNewsForm({ title: '', content: '', type: 'News', attachmentUrl: '', linkedQuizId: '', seoKeywords: '', seoTags: '' }); }} className="text-rose-500 text-[9px]">Cancel Edit</button>}
                </h4>
                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-1">
@@ -355,6 +442,16 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                     </div>
                   )}
                </div>
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-[9px] text-zinc-400 font-bold uppercase ml-1">SEO Keywords</label>
+                    <TagInput value={newsForm.seoKeywords} onChange={val => setNewsForm({...newsForm, seoKeywords: val})} placeholder="Type and press comma..." />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[9px] text-zinc-400 font-bold uppercase ml-1">SEO Tags</label>
+                    <TagInput value={newsForm.seoTags} onChange={val => setNewsForm({...newsForm, seoTags: val})} placeholder="Type and press comma..." />
+                  </div>
+               </div>
                <button type="submit" disabled={isPublishingNews} className="w-full bg-blue-600 hover:bg-blue-500 text-white py-5 rounded-xl font-black text-[10px] uppercase tracking-[0.3em] shadow-2xl transition-all">
                  {isPublishingNews ? <Loader2 className="h-4 w-4 animate-spin mx-auto" /> : "Broadcast Dispatch"}
                </button>
@@ -379,7 +476,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                                  content: n.content,
                                  type: n.type,
                                  attachmentUrl: n.attachmentUrl || '',
-                                 linkedQuizId: n.linkedQuizId || ''
+                                 linkedQuizId: n.linkedQuizId || '',
+                                 seoKeywords: n.seoKeywords || '',
+                                 seoTags: n.seoTags || ''
                               });
                               window.scrollTo({ top: 0, behavior: 'smooth' });
                            }} className="p-2 text-indigo-400 hover:bg-indigo-400/10 rounded-lg">
@@ -431,8 +530,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                       <h4 className="text-white font-heading font-black text-xs uppercase tracking-normal mb-6 flex items-center gap-2"><Sparkles className="h-4 w-4 text-gold-light" /> AI Document Parser</h4>
                       <div onClick={() => fileInputRef.current?.click()} className="border-2 border-dashed border-slate-700 rounded-2xl p-10 flex flex-col items-center justify-center cursor-pointer hover:border-gold/40 hover:bg-gold/5 transition-all text-center">
                          {isParsing ? <Loader2 className="h-10 w-10 text-gold animate-spin mb-4" /> : <UploadCloud className="h-10 w-10 text-slate-500 mb-4" />}
-                         <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">{isParsing ? parsingStep : "Upload PDF or DOCX"}</p>
-                         <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" accept=".pdf,.docx" />
+                         <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">{isParsing ? parsingStep : "Upload PDF, DOCX or Image"}</p>
+                         <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" accept=".pdf,.docx,.jpg,.jpeg,.png" />
                       </div>
                       {parseError && <p className="mt-4 text-rose-500 text-[10px] font-black uppercase text-center">{parseError}</p>}
                    </div>
@@ -466,11 +565,21 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                             {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                          </AdminSelect>
                          <AdminSelect value={manualQuizForm.topicId} onChange={e => setManualQuizForm({...manualQuizForm, topicId: e.target.value})}>
-                            <option value="">Test Material</option>
+                            <option value="">General Material</option>
                             {topics.filter(t => t.categoryId === manualQuizForm.subCategoryId).map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                          </AdminSelect>
                       </div>
 
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                          <label className="text-[9px] text-zinc-400 font-bold uppercase ml-1">SEO Keywords</label>
+                          <TagInput value={manualQuizForm.seoKeywords} onChange={val => setManualQuizForm({...manualQuizForm, seoKeywords: val})} placeholder="Type and press comma..." />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[9px] text-zinc-400 font-bold uppercase ml-1">SEO Tags</label>
+                          <TagInput value={manualQuizForm.seoTags} onChange={val => setManualQuizForm({...manualQuizForm, seoTags: val})} placeholder="Type and press comma..." />
+                        </div>
+                      </div>
                       <div className="space-y-6 max-h-[400px] overflow-y-auto p-4 bg-slate-900/50 rounded-2xl border border-slate-800">
                          {manualQuizForm.questions.map((q, idx) => (
                            <div key={idx} className="p-5 bg-slate-800 border border-slate-700 rounded-2xl space-y-4 relative group/q shadow-lg">
@@ -492,7 +601,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                              <AdminInput value={q.explanation || ''} onChange={e => { const newQs = [...manualQuizForm.questions]; newQs[idx].explanation = e.target.value; setManualQuizForm({...manualQuizForm, questions: newQs}); }} placeholder="Explanation (Optional)" className="!p-2 !text-[10px] !bg-slate-900 !border-slate-800" />
                            </div>
                          ))}
-                         <button type="button" onClick={addManualQuestion} className="w-full py-4 border-2 border-dashed border-slate-700 text-zinc-500 rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:border-gold/30 hover:text-gold transition-all bg-slate-900/50"><Plus className="h-4 w-4" /> Add Academic Item</button>
+                         <button type="button" onClick={addManualQuestion} className="w-full py-4 border-2 border-dashed border-slate-700 text-zinc-500 rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:border-gold/30 hover:text-gold transition-all bg-slate-900/50"><Plus className="h-4 w-4" /> Add Question</button>
                       </div>
                       <button type="submit" className="w-full py-6 bg-gold text-pakgreen font-black uppercase text-[11px] tracking-[0.3em] rounded-2xl shadow-2xl hover:scale-[1.02] transition-all">Publish Final Assessment</button>
                    </form>
@@ -542,7 +651,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                             {catQuizzes.filter(q => !q.topicId).length > 0 && (
                                <div className="ml-6 space-y-4 border-l border-slate-700 pl-6">
                                   <div className="flex items-center gap-2 text-slate-500 font-bold uppercase text-[10px] tracking-widest">
-                                     <ChevronRight className="h-3 w-3" /> Test Material Portion
+                                     <ChevronRight className="h-3 w-3" /> General Material Portion
                                   </div>
                                   {catQuizzes.filter(q => !q.topicId).map(q => (
                                      <div key={q.id} className="p-4 bg-slate-800/40 rounded-xl border border-slate-700 flex justify-between items-center group shadow-md">
@@ -591,20 +700,30 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                 e.preventDefault(); if (!noteForm.title || !noteForm.fileData) return;
                 setIsUploadingNote(true);
                 try {
-                  await onAddNote({ id: editingNoteId || `note_${Date.now()}`, title: noteForm.title, url: noteForm.fileData, subCategoryId: noteForm.subCategoryId, topicId: noteForm.topicId, type: 'PDF' });
-                  setNoteForm({ title: '', subCategoryId: categories[0]?.id || '', topicId: '', fileData: '' });
+                  await onAddNote({ id: editingNoteId || `note_${Date.now()}`, title: noteForm.title, url: noteForm.fileData, subCategoryId: noteForm.subCategoryId, topicId: noteForm.topicId, type: 'PDF', seoKeywords: noteForm.seoKeywords, seoTags: noteForm.seoTags });
+                  setNoteForm({ title: '', subCategoryId: categories[0]?.id || '', topicId: '', fileData: '', seoKeywords: '', seoTags: '' });
                   setEditingNoteId(null);
                   alert("Library Updated.");
                 } catch (err) { alert("Failed."); } finally { setIsUploadingNote(false); }
              }} className="bg-slate-800/30 p-8 rounded-3xl border border-slate-700 space-y-4">
                 <h4 className="text-white font-heading font-black text-xs uppercase tracking-normal flex justify-between items-center">
                    <span className="flex items-center gap-2"><FileText className="h-4 w-4 text-rose-500" /> Study Library Entry</span>
-                   {editingNoteId && <button type="button" onClick={() => { setEditingNoteId(null); setNoteForm({ title: '', subCategoryId: categories[0]?.id || '', topicId: '', fileData: '' }); }} className="text-rose-500 text-[9px]">Cancel Edit</button>}
+                   {editingNoteId && <button type="button" onClick={() => { setEditingNoteId(null); setNoteForm({ title: '', subCategoryId: categories[0]?.id || '', topicId: '', fileData: '', seoKeywords: '', seoTags: '' }); }} className="text-rose-500 text-[9px]">Cancel Edit</button>}
                 </h4>
                 <AdminInput value={noteForm.title} onChange={e => setNoteForm({...noteForm, title: e.target.value})} placeholder="Resource Title" required />
                 <AdminSelect value={noteForm.subCategoryId} onChange={e => setNoteForm({...noteForm, subCategoryId: e.target.value, topicId: ''})}>
                    {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </AdminSelect>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-[9px] text-zinc-400 font-bold uppercase ml-1">SEO Keywords</label>
+                    <TagInput value={noteForm.seoKeywords} onChange={val => setNoteForm({...noteForm, seoKeywords: val})} placeholder="Type and press comma..." />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[9px] text-zinc-400 font-bold uppercase ml-1">SEO Tags</label>
+                    <TagInput value={noteForm.seoTags} onChange={val => setNoteForm({...noteForm, seoTags: val})} placeholder="Type and press comma..." />
+                  </div>
+                </div>
                 <button type="button" onClick={() => noteFileRef.current?.click()} className="px-6 py-3 bg-slate-700 text-white rounded-xl text-[10px] font-black uppercase tracking-widest">Select PDF Document</button>
                 <input type="file" ref={noteFileRef} onChange={handleNoteFileChange} className="hidden" accept=".pdf" />
                 <button type="submit" disabled={isUploadingNote} className="w-full bg-rose-600 hover:bg-rose-500 text-white py-5 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all">
@@ -622,7 +741,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                          <div className="flex flex-col">
                             <h6 className="text-white font-bold text-sm uppercase">{note.title}</h6>
                             <span className="text-[9px] text-indigo-400 uppercase font-black">
-                               {categories.find(c => c.id === note.subCategoryId)?.name || 'Test Material'}
+                               {categories.find(c => c.id === note.subCategoryId)?.name || 'General Material'}
                             </span>
                          </div>
                          <div className="flex items-center gap-2">
@@ -632,7 +751,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                                   title: note.title,
                                   subCategoryId: note.subCategoryId,
                                   topicId: note.topicId || '',
-                                  fileData: note.url
+                                  fileData: note.url,
+                                  seoKeywords: note.seoKeywords || '',
+                                  seoTags: note.seoTags || ''
                                });
                                window.scrollTo({ top: 0, behavior: 'smooth' });
                             }} className="p-2 text-indigo-400 hover:bg-indigo-400/10 rounded-lg">
@@ -647,6 +768,122 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                    {notes.length === 0 && <p className="text-center py-4 text-zinc-600 font-black uppercase text-[9px]">Library is empty</p>}
                 </div>
              </div>
+          </div>
+        )}
+
+        {activeTab === 'articles' && (
+          <div className="space-y-8 animate-in fade-in">
+            <form onSubmit={async (e) => {
+              e.preventDefault();
+              if (!articleForm.title || !articleForm.content) return;
+              setIsPublishingArticle(true);
+              try {
+                const localDate = new Date().toLocaleDateString('en-PK', { day: '2-digit', month: 'short', year: 'numeric' });
+                const newArticle: Article = { 
+                  id: editingArticleId || `art_${Date.now()}`, 
+                  date: localDate, 
+                  author: 'Admin',
+                  ...articleForm 
+                };
+                await onAddArticle(newArticle);
+                setArticleForm({ title: '', content: '', category: '', imageUrl: '', seoKeywords: '', seoTags: '' });
+                setEditingArticleId(null);
+                alert("Article Published.");
+              } catch (err) { alert("Failed to publish article."); } finally { setIsPublishingArticle(false); }
+            }} className="bg-slate-800/30 p-8 rounded-3xl border border-slate-700 space-y-6">
+               <h4 className="text-white font-heading font-black text-xs uppercase tracking-normal flex justify-between items-center mb-2">
+                  <span className="flex items-center gap-2"><FileText className="h-4 w-4 text-gold-light" /> Knowledge Article</span>
+                  {editingArticleId && <button type="button" onClick={() => { setEditingArticleId(null); setArticleForm({ title: '', content: '', category: '', imageUrl: '', seoKeywords: '', seoTags: '' }); }} className="text-rose-500 text-[9px]">Cancel Edit</button>}
+               </h4>
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-[9px] text-zinc-400 font-bold uppercase ml-1">Article Title</label>
+                    <AdminInput value={articleForm.title} onChange={e => setArticleForm({...articleForm, title: e.target.value})} placeholder="e.g. SPSC Preparation Guide" required />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[9px] text-zinc-400 font-bold uppercase ml-1">Topic / Category</label>
+                    <AdminInput value={articleForm.category} onChange={e => setArticleForm({...articleForm, category: e.target.value})} placeholder="e.g. SPSC, MDCAT, General" required />
+                  </div>
+               </div>
+               <div className="space-y-1">
+                  <label className="text-[9px] text-zinc-400 font-bold uppercase ml-1">Article Content (Markdown Supported)</label>
+                  <textarea value={articleForm.content} onChange={e => setArticleForm({...articleForm, content: e.target.value})} className="w-full p-4 bg-slate-800 text-white rounded-xl text-sm border border-slate-700 outline-none" rows={10} placeholder="Write your article here..." required />
+               </div>
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-[9px] text-zinc-400 font-bold uppercase ml-1">SEO Keywords</label>
+                    <TagInput value={articleForm.seoKeywords} onChange={val => setArticleForm({...articleForm, seoKeywords: val})} placeholder="Type and press comma..." />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[9px] text-zinc-400 font-bold uppercase ml-1">SEO Tags</label>
+                    <TagInput value={articleForm.seoTags} onChange={val => setArticleForm({...articleForm, seoTags: val})} placeholder="Type and press comma..." />
+                  </div>
+               </div>
+               <div className="flex flex-col sm:flex-row items-center gap-6 p-4 bg-slate-900/50 rounded-2xl border border-slate-800">
+                  <button type="button" onClick={() => articleImageRef.current?.click()} className="px-6 py-3 bg-slate-700 hover:bg-slate-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg flex items-center gap-2">
+                     <ImageIcon className="h-4 w-4" /> Upload Article Image
+                  </button>
+                  <input type="file" ref={articleImageRef} onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    const reader = new FileReader();
+                    reader.onload = (event) => setArticleForm(prev => ({ ...prev, imageUrl: event.target?.result as string }));
+                    reader.readAsDataURL(file);
+                  }} className="hidden" accept="image/*" />
+                  {articleForm.imageUrl && (
+                    <div className="relative group h-24 w-40 rounded-lg overflow-hidden border border-slate-700">
+                       <img src={articleForm.imageUrl} className="w-full h-full object-cover" alt="Preview" />
+                       <button type="button" onClick={() => setArticleForm({...articleForm, imageUrl: ''})} className="absolute top-1 right-1 bg-rose-600 p-1 rounded-full text-white"><Trash className="h-3 w-3" /></button>
+                    </div>
+                  )}
+               </div>
+               <button type="submit" disabled={isPublishingArticle} className="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-5 rounded-xl font-black text-[10px] uppercase tracking-[0.3em] shadow-2xl transition-all">
+                 {isPublishingArticle ? <Loader2 className="h-4 w-4 animate-spin mx-auto" /> : "Publish Article"}
+               </button>
+            </form>
+
+            <div className="space-y-4 mt-8">
+               <h4 className="text-white font-black text-xs uppercase tracking-widest border-b border-slate-800 pb-2 flex items-center gap-2">
+                  <FileText className="h-4 w-4" /> Published Articles
+               </h4>
+               <div className="grid grid-cols-1 gap-4">
+                  {articles.map((art: Article) => (
+                     <div key={art.id} className="p-4 bg-slate-800/40 rounded-xl border border-slate-700 flex justify-between items-center group">
+                        <div className="flex items-center gap-4">
+                           {art.imageUrl && (
+                             <div className="w-16 h-10 rounded border border-slate-700 overflow-hidden">
+                                <img src={art.imageUrl} className="w-full h-full object-cover" alt="" />
+                             </div>
+                           )}
+                           <div className="flex flex-col">
+                              <h6 className="text-white font-bold text-sm uppercase">{art.title}</h6>
+                              <span className="text-[9px] text-zinc-500 uppercase font-black">{art.date} • {art.category}</span>
+                           </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                           <button onClick={() => {
+                              setEditingArticleId(art.id);
+                              setArticleForm({
+                                 title: art.title,
+                                 content: art.content,
+                                 category: art.category,
+                                 imageUrl: art.imageUrl || '',
+                                 seoKeywords: art.seoKeywords || '',
+                                 seoTags: art.seoTags || ''
+                              });
+                              window.scrollTo({ top: 0, behavior: 'smooth' });
+                           }} className="p-2 text-indigo-400 hover:bg-indigo-400/10 rounded-lg">
+                              <Edit3 className="h-4 w-4" />
+                           </button>
+                           <button onClick={() => { if(window.confirm('Delete this article?')) onDeleteArticle(art.id); }} className="p-2 text-rose-500 hover:bg-rose-500/10 rounded-lg">
+                              <Trash2 className="h-4 w-4" />
+                           </button>
+                        </div>
+                     </div>
+                  ))}
+                  {articles.length === 0 && <p className="text-center py-4 text-zinc-600 font-black uppercase text-[9px]">No articles published yet</p>}
+               </div>
+            </div>
           </div>
         )}
 
@@ -787,13 +1024,13 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
 
         {activeTab === 'inquiries' && (
           <div className="space-y-6 animate-in fade-in">
-             <h4 className="text-white font-heading font-black text-xs uppercase tracking-normal border-b border-slate-800 pb-2">Student Academic Inquiries</h4>
+             <h4 className="text-white font-heading font-black text-xs uppercase tracking-normal border-b border-slate-800 pb-2">Student Inquiries</h4>
              {feedbacks.filter(fb => fb.quizId === 'academic_inquiry').length > 0 ? feedbacks.filter(fb => fb.quizId === 'academic_inquiry').map(fb => (
                 <div key={fb.id} className="bg-slate-800/40 p-8 rounded-[32px] border border-slate-700 flex flex-col gap-6 shadow-xl">
                    <div className="flex flex-col md:flex-row justify-between items-start gap-4">
                       <div className="space-y-2">
                         <div className="flex items-center gap-3">
-                           <span className="text-[10px] font-black text-indigo-400 uppercase bg-indigo-400/10 px-3 py-1 rounded-full border border-indigo-400/20">Academic Inquiry</span>
+                           <span className="text-[10px] font-black text-indigo-400 uppercase bg-indigo-400/10 px-3 py-1 rounded-full border border-indigo-400/20">Inquiry</span>
                            <span className="text-[9px] text-zinc-500 font-black uppercase flex items-center gap-1"><Clock className="h-3 w-3" /> {fb.date}</span>
                         </div>
                         <h5 className="text-xl font-heading font-black text-white uppercase tracking-normal">{fb.studentName}</h5>
@@ -829,7 +1066,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                      disabled={isRepairing}
                      className="w-full py-6 bg-slate-700 hover:bg-slate-600 text-white font-black uppercase text-[11px] tracking-[0.4em] rounded-2xl flex items-center justify-center gap-4 transition-all"
                    >
-                     {isRepairing ? <Loader2 className="h-5 w-5 animate-spin" /> : <Settings className="h-5 w-5" />} Reset Academic Core
+                     {isRepairing ? <Loader2 className="h-5 w-5 animate-spin" /> : <Settings className="h-5 w-5" />} Reset System Core
                    </button>
                 </div>
              </div>

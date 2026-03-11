@@ -1,9 +1,76 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <!-- TAGS: Measurement & Tracking (Google Ads/Analytics) -->
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-LPKN9GTC7V"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+
+    gtag('config', 'G-LPKN9GTC7V');
+  </script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>MM Online Academy - Pakistan's Elite Legal Portal</title>
+  <title>MM Academy - SPSC, MDCAT, ECAT & HEC Test Preparation Pakistan</title>
+  <meta name="description" content="MM Academy is Pakistan's premier platform for SPSC, MDCAT, ECAT, and HEC test preparation. Access expert-curated MCQs, mock tests, and study notes.">
+  <!-- KEYWORDS: Targeting & Discovery (SEO) -->
+  <meta name="keywords" content="SPSC preparation, MDCAT test, ECAT preparation, HEC LAT, PPHI jobs, competitive exams Pakistan, MCQs preparation, legal portal Pakistan, LAW GAT, LAT preparation">
+  <meta name="author" content="MM Academy">
+  <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
+  <meta property="og:title" content="MM Academy - Pakistan's Elite Test Preparation Portal">
+  <meta property="og:description" content="Master your competitive exams with MM Academy. The most updated resources for SPSC, MDCAT, and ECAT.">
+  <meta property="og:url" content="https://mmtestpreparation.com/">
+  <meta property="og:type" content="website">
+  <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "EducationalOrganization",
+      "name": "MM Academy",
+      "url": "https://mmtestpreparation.com/",
+      "logo": "https://mmtestpreparation.com/logo.png",
+      "description": "Pakistan's premier platform for SPSC, MDCAT, ECAT, and HEC test preparation.",
+      "address": {
+        "@type": "PostalAddress",
+        "addressCountry": "PK"
+      },
+      "sameAs": [
+        "https://www.facebook.com/mmacademy",
+        "https://twitter.com/mmacademy"
+      ]
+    }
+  </script>
+  <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "url": "https://mmtestpreparation.com/",
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": "https://mmtestpreparation.com/registry?q={search_term_string}",
+        "query-input": "required name=search_term_string"
+      }
+    }
+  </script>
+  <script>
+    (function() {
+      const saved = localStorage.getItem('theme');
+      if (saved === 'dark' || !saved) {
+        document.documentElement.classList.add('dark');
+        document.documentElement.style.colorScheme = 'dark';
+      } else {
+        document.documentElement.classList.remove('dark');
+        document.documentElement.style.colorScheme = 'light';
+      }
+
+      // Hash-to-Path Redirect for SEO Transition
+      if (window.location.hash && window.location.hash.startsWith('#/')) {
+        const path = window.location.hash.substring(2);
+        window.history.replaceState(null, '', '/' + path);
+      }
+    })();
+  </script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -13,7 +80,7 @@
       margin: 0;
       padding: 0;
       overflow-x: hidden;
-      font-family: 'Times New Roman', Times, serif;
+      font-family: 'Poppins', sans-serif;
       -webkit-font-smoothing: antialiased;
       -moz-osx-font-smoothing: grayscale;
       transition: background-color 0.4s cubic-bezier(0.4, 0, 0.2, 1), color 0.4s ease;
@@ -72,6 +139,6 @@
 </head>
 <body class="bg-zinc-50 text-zinc-900 dark:bg-pakgreen-deepest dark:text-zinc-100 islamic-pattern transition-colors duration-500">
   <div id="root"></div>
-  <script type="module" src="/index.tsx"></script>
+  <script type="module" src="./index.tsx"></script>
 </body>
 </html>

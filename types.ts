@@ -33,6 +33,8 @@ export interface Quiz {
   questions: Question[];
   videoUrl?: string; // Optional YouTube video link for the result page
   orderNumber?: number; // Numerical order for series arrangement
+  seoKeywords?: string;
+  seoTags?: string;
 }
 
 export interface QuizFeedback {
@@ -53,6 +55,8 @@ export interface StudyNote {
   subCategoryId: string;
   topicId?: string;
   type: 'PDF' | 'Image';
+  seoKeywords?: string;
+  seoTags?: string;
 }
 
 export interface Notification {
@@ -63,6 +67,8 @@ export interface Notification {
   type: 'Test Date' | 'Result' | 'News';
   attachmentUrl?: string; // Base64 image
   linkedQuizId?: string; // ID of quiz to link to this news
+  seoKeywords?: string;
+  seoTags?: string;
 }
 
 export interface PrivateAd {
@@ -72,6 +78,18 @@ export interface PrivateAd {
   clickUrl: string;
   isVisible: boolean;
   placement: 'header' | 'sidebar' | 'content' | 'footer';
+}
+
+export interface Article {
+  id: string;
+  title: string;
+  content: string;
+  imageUrl?: string;
+  category: string;
+  date: string;
+  author?: string;
+  seoKeywords?: string;
+  seoTags?: string;
 }
 
 export interface AppState {
