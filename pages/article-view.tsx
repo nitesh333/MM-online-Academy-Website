@@ -7,6 +7,7 @@ import { motion } from 'framer-motion';
 import { ArrowLeft, Calendar, User, Share2, Tag, Clock, ChevronRight } from 'lucide-react';
 import { handleShareArticle } from '../utils/share';
 import ReactMarkdown from 'react-markdown';
+import AdSlot from '../components/ad-banner';
 
 const ArticleView: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -68,29 +69,16 @@ const ArticleView: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-pakgreen-deepest pb-24">
-      {/* Hero Header */}
-      <section className="relative py-24 lg:py-32 bg-pakgreen dark:bg-pakgreen-dark overflow-hidden">
-        <div className="absolute inset-0 islamic-pattern opacity-10 pointer-events-none" />
-        <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-b from-black/40 to-transparent" />
-        
-        <div className="max-w-4xl mx-auto px-6 relative z-10">
-          <motion.button
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            onClick={() => navigate(-1)}
-            className="flex items-center gap-2 text-gold-light font-black uppercase text-[10px] tracking-[0.3em] mb-12 hover:gap-4 transition-all"
-          >
-            <ArrowLeft className="h-4 w-4" /> Back to Registry
-          </motion.button>
-          
+    <div className="min-h-screen bg-white dark:bg-pakgreen-deepest pb-24">
+      {/* 1. Article Title, Author, and Date */}
+      <section className="pt-32 pb-16 bg-zinc-50 dark:bg-pakgreen-dark/20 border-b border-gold/10">
+        <div className="max-w-4xl mx-auto px-6">
           <motion.div
-            initial={{ opacity: 0, y: 30 }}
+            initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
           >
-            <div className="flex flex-wrap items-center gap-4 mb-8">
-              <span className="px-4 py-1.5 bg-gold/20 border border-gold/30 rounded-full text-gold-light text-[10px] font-black uppercase tracking-widest backdrop-blur-md">
+            <div className="flex items-center gap-4 mb-8">
+              <span className="px-4 py-1.5 bg-gold/10 border border-gold/20 rounded-full text-gold text-[10px] font-black uppercase tracking-widest">
                 {article.category}
               </span>
               <div className="flex items-center gap-2 text-zinc-400 text-[10px] font-black uppercase tracking-widest">
@@ -100,93 +88,88 @@ const ArticleView: React.FC = () => {
                 <User className="h-3 w-3 text-gold" /> {article.author || 'MM Academy Staff'}
               </div>
             </div>
-            
-            <h1 className="text-4xl md:text-6xl font-heading font-black text-white uppercase tracking-tight leading-[0.9] mb-10 drop-shadow-2xl">
+            <h1 className="text-4xl md:text-6xl font-heading font-black text-pakgreen dark:text-white uppercase tracking-tight leading-tight mb-8">
               {article.title}
             </h1>
-            
-            <div className="flex items-center gap-6">
+            <div className="flex items-center gap-4">
               <button 
                 onClick={() => handleShareArticle(article)}
-                className="flex items-center gap-3 px-6 py-3 bg-white/10 hover:bg-white/20 border border-white/10 rounded-xl text-white text-[10px] font-black uppercase tracking-widest transition-all backdrop-blur-md"
+                className="flex items-center gap-2 text-[10px] font-black text-gold uppercase tracking-widest hover:underline"
               >
-                <Share2 className="h-4 w-4 text-gold" /> Share Insight
+                <Share2 className="h-4 w-4" /> Share Article
               </button>
             </div>
           </motion.div>
         </div>
       </section>
 
-      {/* Content Section */}
-      <div className="max-w-4xl mx-auto px-6 -mt-16 relative z-20">
-        <motion.div
-          initial={{ opacity: 0, y: 40 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
-          className="bg-white dark:bg-pakgreen-dark/60 backdrop-blur-3xl p-8 md:p-16 rounded-[40px] md:rounded-[60px] shadow-[0_40px_80px_rgba(0,0,0,0.15)] border border-gold/10"
-        >
-          {article.imageUrl && (
-            <div className="w-full aspect-video rounded-[32px] overflow-hidden mb-12 border-4 border-gold/10 shadow-2xl">
-              <img src={article.imageUrl} className="w-full h-full object-cover" alt={article.title} />
+      <div className="max-w-7xl mx-auto px-6 py-16 grid grid-cols-1 lg:grid-cols-12 gap-16">
+        {/* Sidebar for Table of Contents */}
+        <aside className="lg:col-span-3 hidden lg:block">
+          <div className="sticky top-32 p-8 bg-zinc-50 dark:bg-pakgreen-dark/20 rounded-[32px] border border-gold/10">
+            <h3 className="text-xs font-black text-gold uppercase tracking-widest mb-6">Table of Contents</h3>
+            <div className="space-y-4 text-[10px] font-black uppercase tracking-widest text-zinc-400">
+              <p className="cursor-pointer hover:text-gold transition-colors">Introduction</p>
+              <p className="cursor-pointer hover:text-gold transition-colors">Key Concepts</p>
+              <p className="cursor-pointer hover:text-gold transition-colors">Detailed Analysis</p>
+              <p className="cursor-pointer hover:text-gold transition-colors">Conclusion</p>
             </div>
-          )}
-          
-          <div className="prose prose-lg dark:prose-invert max-w-none prose-headings:font-heading prose-headings:font-black prose-headings:uppercase prose-headings:tracking-tight prose-p:text-zinc-600 dark:prose-p:text-zinc-300 prose-p:leading-relaxed prose-strong:text-pakgreen dark:prose-strong:text-gold-light">
-            <ReactMarkdown>{article.content}</ReactMarkdown>
           </div>
+        </aside>
 
-          {article.seoKeywords && (
-            <div className="mt-12 flex flex-wrap gap-3">
-              {article.seoKeywords.split(',').map((tag, i) => (
-                <span key={i} className="flex items-center gap-2 px-4 py-2 bg-zinc-50 dark:bg-white/5 border border-zinc-100 dark:border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest text-zinc-500 hover:text-gold transition-colors cursor-default">
-                  <Tag className="h-3 w-3 text-gold" /> {tag.trim()}
-                </span>
-              ))}
+        {/* Main Content Area */}
+        <main className="lg:col-span-6">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.2 }}
+            className="prose prose-lg dark:prose-invert max-w-none prose-headings:font-heading prose-headings:font-black prose-headings:uppercase prose-headings:tracking-tight prose-p:text-zinc-600 dark:prose-p:text-zinc-300 prose-p:leading-relaxed prose-strong:text-pakgreen dark:prose-strong:text-gold"
+          >
+            <ReactMarkdown>{article.content}</ReactMarkdown>
+          </motion.div>
+
+          {/* Key Takeaways Section */}
+          <section className="mt-16 p-10 bg-gold/5 border-2 border-dashed border-gold/20 rounded-[40px]">
+            <h3 className="text-xl font-heading font-black text-pakgreen dark:text-gold uppercase mb-6">Key Takeaways</h3>
+            <ul className="space-y-4 text-sm text-zinc-600 dark:text-zinc-300 font-medium">
+              <li>Comprehensive understanding of the subject matter.</li>
+              <li>Practical application of key concepts in real-world scenarios.</li>
+              <li>Critical analysis and expert insights for advanced learning.</li>
+            </ul>
+          </section>
+
+          {/* Comments/Feedback Placeholder */}
+          <section className="mt-24 pt-12 border-t border-gold/10">
+            <h3 className="text-xl font-heading font-black text-pakgreen dark:text-white uppercase mb-8">Comments & Feedback</h3>
+            <div className="p-12 bg-zinc-50 dark:bg-pakgreen-dark/20 rounded-[40px] text-center">
+              <p className="text-xs text-zinc-400 font-black uppercase tracking-widest">
+                Discussion section is currently under moderation.
+              </p>
             </div>
-          )}
-          
-          <div className="mt-20 pt-12 border-t border-zinc-100 dark:border-white/5 flex flex-col md:flex-row items-center justify-between gap-8">
-            <div className="flex items-center gap-4">
-              <div className="h-12 w-12 bg-pakgreen dark:bg-gold rounded-full flex items-center justify-center text-white dark:text-pakgreen font-black">MM</div>
-              <div>
-                <p className="text-pakgreen dark:text-white font-black uppercase text-[11px] tracking-widest">MM Academy Editorial</p>
-                <p className="text-zinc-400 text-[9px] font-bold uppercase tracking-widest">Verified Content</p>
-              </div>
-            </div>
-            <button 
-              onClick={() => handleShareArticle(article)}
-              className="p-4 bg-zinc-50 dark:bg-white/5 hover:bg-gold/10 rounded-2xl transition-all group"
-            >
-              <Share2 className="h-6 w-6 text-zinc-400 group-hover:text-gold" />
-            </button>
-          </div>
-        </motion.div>
-        
-        {/* Related Articles / Next Steps */}
-        <div className="mt-24 space-y-12">
-           <div className="flex items-center justify-between">
-              <h3 className="text-2xl font-heading font-black text-pakgreen dark:text-white uppercase tracking-tight">More Insights</h3>
-              <button onClick={() => navigate('/')} className="text-[10px] font-black text-gold uppercase tracking-[0.3em] flex items-center gap-2 hover:gap-4 transition-all">
-                View All <ChevronRight className="h-4 w-4" />
-              </button>
-           </div>
-           
-           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              {articles.filter(a => a.id !== article.id).slice(0, 2).map(a => (
+          </section>
+        </main>
+
+        {/* Right Sidebar for Related Content */}
+        <aside className="lg:col-span-3 space-y-12">
+          <div>
+            <h3 className="text-xs font-black text-gold uppercase tracking-widest mb-8">Related Articles</h3>
+            <div className="space-y-6">
+              {articles.filter(a => a.id !== article.id).slice(0, 3).map(a => (
                 <div 
                   key={a.id}
                   onClick={() => navigate(`/article/${a.id}`)}
-                  className="bg-white dark:bg-pakgreen-dark/30 p-8 rounded-[40px] border border-gold/10 hover:border-gold-light transition-all cursor-pointer group"
+                  className="p-6 bg-white dark:bg-pakgreen-dark/30 border border-gold/10 rounded-3xl hover:border-gold transition-all cursor-pointer group"
                 >
-                  <span className="text-[9px] font-black text-gold uppercase tracking-widest mb-4 block">{a.category}</span>
-                  <h4 className="text-lg font-heading font-black text-pakgreen dark:text-white uppercase mb-6 group-hover:text-gold transition-colors line-clamp-2">{a.title}</h4>
-                  <div className="flex items-center gap-2 text-[10px] font-black text-gold-light uppercase tracking-widest">
-                    Read Article <ChevronRight className="h-4 w-4" />
+                  <h4 className="text-sm font-heading font-black text-pakgreen dark:text-white uppercase group-hover:text-gold transition-colors line-clamp-2">{a.title}</h4>
+                  <div className="mt-4 flex items-center gap-2 text-[9px] font-black text-gold uppercase tracking-widest">
+                    Read More <ChevronRight className="h-3 w-3" />
                   </div>
                 </div>
               ))}
-           </div>
-        </div>
+            </div>
+          </div>
+          <AdSlot placement="sidebar" privateAds={[]} />
+        </aside>
       </div>
     </div>
   );

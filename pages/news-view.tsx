@@ -117,10 +117,10 @@ const NewsView: React.FC<NewsViewProps> = ({ setActiveImage }) => {
                     <p className="text-zinc-600 dark:text-zinc-300 text-xl leading-relaxed font-medium whitespace-pre-wrap border-l-4 border-zinc-100 dark:border-white/10 pl-8">{n.content}</p>
                     
                     {n.seoKeywords && (
-                      <div className="mt-8 flex flex-wrap gap-2 pl-8">
+                      <div className="mt-8 flex flex-wrap gap-x-4 gap-y-2 pl-8">
                         {n.seoKeywords.split(',').map((tag, i) => (
-                          <span key={i} className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-zinc-400 bg-zinc-50 dark:bg-white/5 px-3 py-1.5 rounded-lg border border-zinc-100 dark:border-white/10">
-                            <Tag className="h-2.5 w-2.5 text-gold" /> {tag.trim()}
+                          <span key={i} className="text-[10px] font-black uppercase tracking-widest text-gold-light hover:text-gold transition-colors cursor-default">
+                            #{tag.trim().replace(/\s+/g, '')}
                           </span>
                         ))}
                       </div>

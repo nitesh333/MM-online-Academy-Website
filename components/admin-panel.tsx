@@ -1,10 +1,10 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Trash2, Loader2, Database, Activity, FileText, CheckCircle2, UploadCloud, MessageSquare, Image as ImageIcon, Plus, Settings, Eye, EyeOff, LogOut, Download, FolderTree, ListOrdered, Edit3, XCircle, Trash, Type as TypeIcon, Sparkles, Image as ImageLucide, Megaphone, ChevronRight, Clock, Mail } from 'lucide-react';
-import { Notification, SubCategory, Topic, Quiz, Question, QuizFeedback, StudyNote, PrivateAd, Article } from '../types';
+import { Trash2, Loader2, Database, Activity, FileText, CheckCircle2, UploadCloud, MessageSquare, Image as ImageIcon, Plus, Settings, Eye, EyeOff, LogOut, Download, FolderTree, ListOrdered, Edit3, XCircle, Trash, Type as TypeIcon, Sparkles, Image as ImageLucide, Megaphone, ChevronRight, Clock, Mail, Layout } from 'lucide-react';
+import { Notification, SubCategory, Topic, Quiz, Question, QuizFeedback, StudyNote, PrivateAd, Article, ArticleType, HomepageSettings } from '../types';
 import { dataService } from '../services/dataService';
 import { parserService } from '../services/parserService';
-import { parseQuizFromText } from '../services/geminiService';
+import { parseQuizFromText, humanizeContent } from '../services/geminiService';
 
 const AdminInput = ({ className, ...props }: React.InputHTMLAttributes<HTMLInputElement>) => (
   <input 
@@ -112,12 +112,19 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   ads, onAddAd, onDeleteAd, onUpdateAd,
   articles, onAddArticle, onDeleteArticle
 }) => {
-  const [activeTab, setActiveTab] = useState<'notifications' | 'categories' | 'topics' | 'quizzes' | 'notes' | 'articles' | 'moderation' | 'inquiries' | 'ads' | 'account'>('notifications');
+  const [activeTab, setActiveTab] = useState<'notifications' | 'categories' | 'topics' | 'quizzes' | 'notes' | 'articles' | 'exam-prep' | 'study-guides' | 'moderation' | 'inquiries' | 'ads' | 'account' | 'homepage'>('notifications');
   const [isRepairing, setIsRepairing] = useState(false);
   const [dbStatus, setDbStatus] = useState<string>('Testing...');
   const [feedbacks, setFeedbacks] = useState<QuizFeedback[]>([]);
   
   const [isParsing, setIsParsing] = useState(false);
+  const [isHumanizing, setIsHumanizing] = useState(false);
+  const [humanizerData, setHumanizerData] = useState<{
+    original: string;
+    humanized: string;
+    onApply: (val: string) => void;
+  } | null>(null);
+  const [showSuccessToast, setShowSuccessToast] = useState(false);
   const [parsingStep, setParsingStep] = useState<string>('');
   const [parseError, setParseError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -167,12 +174,33 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   const adImageRef = useRef<HTMLInputElement>(null);
   const [editingAdId, setEditingAdId] = useState<string | null>(null);
 
-  const [articleForm, setArticleForm] = useState<{title: string; content: string; category: string; imageUrl: string; seoKeywords: string; seoTags: string}>({
-    title: '', content: '', category: '', imageUrl: '', seoKeywords: '', seoTags: ''
+  const [articleForm, setArticleForm] = useState<{title: string; content: string; category: string; type: ArticleType; imageUrl: string; seoKeywords: string; seoTags: string}>({
+    title: '', content: '', category: '', type: ArticleType.ARTICLE, imageUrl: '', seoKeywords: '', seoTags: ''
   });
   const [isPublishingArticle, setIsPublishingArticle] = useState(false);
   const articleImageRef = useRef<HTMLInputElement>(null);
   const [editingArticleId, setEditingArticleId] = useState<string | null>(null);
+
+  const [homepageForm, setHomepageForm] = useState<HomepageSettings>({
+    heroTitle: 'Master Your Future with MM Academy',
+    heroDescription: 'The ultimate educational platform for Law and Admission test preparation. Access premium study materials, expert guides, and interactive assessments.',
+    footerDescription: 'MM Academy is a premier educational platform dedicated to helping students excel in their academic pursuits. We provide high-quality study materials, expert-led courses, and comprehensive test preparation resources.',
+    ctaText: 'Start Learning Now',
+    ctaLink: '/subjects'
+  });
+  const [isSavingHomepage, setIsSavingHomepage] = useState(false);
+
+  useEffect(() => {
+    const settings = articles.find(a => a.id === 'homepage_settings');
+    if (settings) {
+      try {
+        const parsed = JSON.parse(settings.content);
+        setHomepageForm(parsed);
+      } catch (e) {
+        console.error("Failed to parse homepage settings", e);
+      }
+    }
+  }, [articles]);
 
   useEffect(() => {
     if (categories.length > 0) {
@@ -248,14 +276,24 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     setParsingStep(imageBase64 ? 'Analyzing Image...' : 'Extracting MCQs...');
     try {
       const aiResults = await parseQuizFromText(text, imageBase64);
+      console.log("AI Parsing Results:", aiResults);
+      
       if (!aiResults || aiResults.length === 0) {
-        if (imageBase64) throw new Error("Could not extract questions from image.");
+        console.warn("AI returned no results. Text length:", text?.length);
+        if (imageBase64) throw new Error("The AI could not find any MCQs in this image. Please ensure the image is clear and contains questions with options.");
         
         setParsingStep('Running Local Scan...');
         const fbResults = parserService.parseMCQs(text);
-        if (!fbResults || fbResults.length === 0) throw new Error("Document structure not recognized.");
+        console.log("Local Parser Results:", fbResults);
+        if (!fbResults || fbResults.length === 0) {
+          throw new Error("We couldn't detect a clear question-and-answer structure in this document. Please ensure your document follows a standard format (e.g., Q1. Question text followed by a) b) c) d) options).");
+        }
         populateQuizForm(fbResults);
       } else {
+        const hasEmptyQuestions = aiResults.some(r => !r.text || r.text.trim() === "");
+        if (hasEmptyQuestions) {
+          alert("Warning: Some questions appear to be empty. This often happens with complex Word equations. For best results with math, please upload a screenshot (image) of the document instead.");
+        }
         populateQuizForm(aiResults);
       }
     } catch (err: any) {
@@ -273,17 +311,19 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   };
 
   const populateQuizForm = (qs: Partial<Question>[]) => {
-    const clean = (s: string) => s.replace(/\*\*/g, '').replace(/[✅✔️☑️]/g, '').replace(/^[A-D][\.\)\s]+/i, '').trim();
+    const cleanFormatting = (s: string) => s.replace(/\*\*/g, '').replace(/[✅✔️☑️]/g, '').trim();
+    const cleanLabel = (s: string) => s.replace(/^[A-D][\.\)\s\-]+/i, '').trim();
+    
     setManualQuizForm(prev => ({ 
       ...prev, 
       questions: qs.map((q, idx) => ({
         id: q.id || `q_parse_${Date.now()}_${idx}`,
-        text: q.text ? clean(q.text) : '',
+        text: q.text ? cleanFormatting(q.text) : '',
         options: q.options && q.options.length >= 2 
-          ? q.options.map((o: string) => clean(o))
+          ? q.options.map((o: string) => cleanLabel(cleanFormatting(o)))
           : ['', '', '', ''],
         correctAnswer: q.correctAnswer !== undefined ? q.correctAnswer : 0,
-        explanation: q.explanation ? clean(q.explanation) : ''
+        explanation: q.explanation ? cleanFormatting(q.explanation) : ''
       })).map(q => {
         const opts = [...q.options];
         while (opts.length < 4) opts.push('');
@@ -372,7 +412,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
           { id: 'topics', label: 'Sub Categories' },
           { id: 'quizzes', label: 'Assessments' },
           { id: 'notes', label: 'Study Library' },
+          { id: 'exam-prep', label: 'Exam Prep' },
+          { id: 'study-guides', label: 'Study Guides' },
           { id: 'articles', label: 'Articles' },
+          { id: 'homepage', label: 'Homepage' },
           { id: 'ads', label: 'Private Ads' },
           { id: 'moderation', label: 'Reviews' },
           { id: 'inquiries', label: 'Inquiries' },
@@ -429,7 +472,31 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                      {quizzes.map(q => <option key={q.id} value={q.id}>{q.title}</option>)}
                   </AdminSelect>
                </div>
-               <textarea value={newsForm.content} onChange={e => setNewsForm({...newsForm, content: e.target.value})} className="w-full p-4 bg-slate-800 text-white rounded-xl text-sm border border-slate-700 outline-none" rows={4} placeholder="Full message details..." required />
+               <div className="space-y-1">
+                  <label className="text-[9px] text-zinc-400 font-bold uppercase ml-1 flex justify-between items-center">
+                    Message Content
+                      <button 
+                        type="button" 
+                        onClick={async () => {
+                          if (!newsForm.content) return;
+                          setIsHumanizing(true);
+                          const h = await humanizeContent(newsForm.content);
+                          setHumanizerData({
+                            original: newsForm.content,
+                            humanized: h,
+                            onApply: (val) => setNewsForm(prev => ({ ...prev, content: val }))
+                          });
+                          setIsHumanizing(false);
+                        }}
+                        disabled={isHumanizing || !newsForm.content}
+                        className="text-gold-light hover:text-gold flex items-center gap-1 transition-all disabled:opacity-50"
+                      >
+                        {isHumanizing ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+                        Humanize Content
+                      </button>
+                  </label>
+                  <textarea value={newsForm.content} onChange={e => setNewsForm({...newsForm, content: e.target.value})} className="w-full p-4 bg-slate-800 text-white rounded-xl text-sm border border-slate-700 outline-none" rows={4} placeholder="Full message details..." required />
+               </div>
                <div className="flex flex-col sm:flex-row items-center gap-6 p-4 bg-slate-900/50 rounded-2xl border border-slate-800">
                   <button type="button" onClick={() => newsAttachmentRef.current?.click()} className="px-6 py-3 bg-slate-700 hover:bg-slate-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg flex items-center gap-2">
                      <ImageLucide className="h-4 w-4" /> Upload Banner
@@ -598,7 +665,35 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                                  </div>
                                ))}
                              </div>
-                             <AdminInput value={q.explanation || ''} onChange={e => { const newQs = [...manualQuizForm.questions]; newQs[idx].explanation = e.target.value; setManualQuizForm({...manualQuizForm, questions: newQs}); }} placeholder="Explanation (Optional)" className="!p-2 !text-[10px] !bg-slate-900 !border-slate-800" />
+                             <div className="space-y-1">
+                                <label className="text-[9px] text-zinc-400 font-bold uppercase ml-1 flex justify-between items-center">
+                                  Explanation (Optional)
+                                  <button 
+                                    type="button" 
+                                    onClick={async () => {
+                                      if (!q.explanation) return;
+                                      setIsHumanizing(true);
+                                      const h = await humanizeContent(q.explanation);
+                                      setHumanizerData({
+                                        original: q.explanation,
+                                        humanized: h,
+                                        onApply: (val) => {
+                                          const newQs = [...manualQuizForm.questions];
+                                          newQs[idx].explanation = val;
+                                          setManualQuizForm({...manualQuizForm, questions: newQs});
+                                        }
+                                      });
+                                      setIsHumanizing(false);
+                                    }}
+                                    disabled={isHumanizing || !q.explanation}
+                                    className="text-gold-light hover:text-gold flex items-center gap-1 transition-all disabled:opacity-50"
+                                  >
+                                    {isHumanizing ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+                                    Humanize
+                                  </button>
+                                </label>
+                                <AdminInput value={q.explanation || ''} onChange={e => { const newQs = [...manualQuizForm.questions]; newQs[idx].explanation = e.target.value; setManualQuizForm({...manualQuizForm, questions: newQs}); }} placeholder="Explanation (Optional)" className="!p-2 !text-[10px] !bg-slate-900 !border-slate-800" />
+                             </div>
                            </div>
                          ))}
                          <button type="button" onClick={addManualQuestion} className="w-full py-4 border-2 border-dashed border-slate-700 text-zinc-500 rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:border-gold/30 hover:text-gold transition-all bg-slate-900/50"><Plus className="h-4 w-4" /> Add Question</button>
@@ -771,119 +866,207 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
           </div>
         )}
 
-        {activeTab === 'articles' && (
+        {activeTab === 'homepage' && (
           <div className="space-y-8 animate-in fade-in">
-            <form onSubmit={async (e) => {
-              e.preventDefault();
-              if (!articleForm.title || !articleForm.content) return;
-              setIsPublishingArticle(true);
-              try {
-                const localDate = new Date().toLocaleDateString('en-PK', { day: '2-digit', month: 'short', year: 'numeric' });
-                const newArticle: Article = { 
-                  id: editingArticleId || `art_${Date.now()}`, 
-                  date: localDate, 
-                  author: 'Admin',
-                  ...articleForm 
-                };
-                await onAddArticle(newArticle);
-                setArticleForm({ title: '', content: '', category: '', imageUrl: '', seoKeywords: '', seoTags: '' });
-                setEditingArticleId(null);
-                alert("Article Published.");
-              } catch (err) { alert("Failed to publish article."); } finally { setIsPublishingArticle(false); }
-            }} className="bg-slate-800/30 p-8 rounded-3xl border border-slate-700 space-y-6">
-               <h4 className="text-white font-heading font-black text-xs uppercase tracking-normal flex justify-between items-center mb-2">
-                  <span className="flex items-center gap-2"><FileText className="h-4 w-4 text-gold-light" /> Knowledge Article</span>
-                  {editingArticleId && <button type="button" onClick={() => { setEditingArticleId(null); setArticleForm({ title: '', content: '', category: '', imageUrl: '', seoKeywords: '', seoTags: '' }); }} className="text-rose-500 text-[9px]">Cancel Edit</button>}
-               </h4>
-               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+             <form onSubmit={async (e) => { 
+                e.preventDefault();
+                setIsPublishingArticle(true);
+                try {
+                  const settingsArticle: Article = {
+                    id: 'homepage_settings',
+                    title: 'Homepage Configuration',
+                    content: JSON.stringify(homepageForm),
+                    category: 'System',
+                    type: ArticleType.ARTICLE,
+                    date: new Date().toISOString(),
+                    author: 'System'
+                  };
+                  await onAddArticle(settingsArticle);
+                  alert("Homepage Settings Updated.");
+                } catch (err) { alert("Failed to update settings."); } finally { setIsPublishingArticle(false); }
+             }} className="bg-slate-800/30 p-8 rounded-3xl border border-slate-700 space-y-6">
+                <h4 className="text-white font-heading font-black text-xs uppercase tracking-normal flex items-center gap-2 mb-2">
+                   <Layout className="h-4 w-4 text-indigo-400" /> Homepage Visuals & Content
+                </h4>
+                
+                <div className="space-y-4">
                   <div className="space-y-1">
-                    <label className="text-[9px] text-zinc-400 font-bold uppercase ml-1">Article Title</label>
-                    <AdminInput value={articleForm.title} onChange={e => setArticleForm({...articleForm, title: e.target.value})} placeholder="e.g. SPSC Preparation Guide" required />
+                    <label className="text-[9px] text-zinc-400 font-bold uppercase ml-1">Hero Title</label>
+                    <AdminInput value={homepageForm.heroTitle} onChange={e => setHomepageForm({...homepageForm, heroTitle: e.target.value})} placeholder="Main headline on homepage" required />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-[9px] text-zinc-400 font-bold uppercase ml-1">Topic / Category</label>
-                    <AdminInput value={articleForm.category} onChange={e => setArticleForm({...articleForm, category: e.target.value})} placeholder="e.g. SPSC, MDCAT, General" required />
+                    <label className="text-[9px] text-zinc-400 font-bold uppercase ml-1">Hero Description</label>
+                    <textarea value={homepageForm.heroDescription} onChange={e => setHomepageForm({...homepageForm, heroDescription: e.target.value})} className="w-full p-4 bg-slate-800 text-white rounded-xl text-sm border border-slate-700 outline-none" rows={3} placeholder="Sub-headline text..." required />
                   </div>
-               </div>
-               <div className="space-y-1">
-                  <label className="text-[9px] text-zinc-400 font-bold uppercase ml-1">Article Content (Markdown Supported)</label>
-                  <textarea value={articleForm.content} onChange={e => setArticleForm({...articleForm, content: e.target.value})} className="w-full p-4 bg-slate-800 text-white rounded-xl text-sm border border-slate-700 outline-none" rows={10} placeholder="Write your article here..." required />
-               </div>
-               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <label className="text-[9px] text-zinc-400 font-bold uppercase ml-1">SEO Keywords</label>
-                    <TagInput value={articleForm.seoKeywords} onChange={val => setArticleForm({...articleForm, seoKeywords: val})} placeholder="Type and press comma..." />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[9px] text-zinc-400 font-bold uppercase ml-1">SEO Tags</label>
-                    <TagInput value={articleForm.seoTags} onChange={val => setArticleForm({...articleForm, seoTags: val})} placeholder="Type and press comma..." />
-                  </div>
-               </div>
-               <div className="flex flex-col sm:flex-row items-center gap-6 p-4 bg-slate-900/50 rounded-2xl border border-slate-800">
-                  <button type="button" onClick={() => articleImageRef.current?.click()} className="px-6 py-3 bg-slate-700 hover:bg-slate-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg flex items-center gap-2">
-                     <ImageIcon className="h-4 w-4" /> Upload Article Image
-                  </button>
-                  <input type="file" ref={articleImageRef} onChange={async (e) => {
-                    const file = e.target.files?.[0];
-                    if (!file) return;
-                    const reader = new FileReader();
-                    reader.onload = (event) => setArticleForm(prev => ({ ...prev, imageUrl: event.target?.result as string }));
-                    reader.readAsDataURL(file);
-                  }} className="hidden" accept="image/*" />
-                  {articleForm.imageUrl && (
-                    <div className="relative group h-24 w-40 rounded-lg overflow-hidden border border-slate-700">
-                       <img src={articleForm.imageUrl} className="w-full h-full object-cover" alt="Preview" />
-                       <button type="button" onClick={() => setArticleForm({...articleForm, imageUrl: ''})} className="absolute top-1 right-1 bg-rose-600 p-1 rounded-full text-white"><Trash className="h-3 w-3" /></button>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="text-[9px] text-zinc-400 font-bold uppercase ml-1">CTA Button Text</label>
+                      <AdminInput value={homepageForm.ctaText} onChange={e => setHomepageForm({...homepageForm, ctaText: e.target.value})} placeholder="e.g. Start Learning" required />
                     </div>
-                  )}
-               </div>
-               <button type="submit" disabled={isPublishingArticle} className="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-5 rounded-xl font-black text-[10px] uppercase tracking-[0.3em] shadow-2xl transition-all">
-                 {isPublishingArticle ? <Loader2 className="h-4 w-4 animate-spin mx-auto" /> : "Publish Article"}
-               </button>
-            </form>
+                    <div className="space-y-1">
+                      <label className="text-[9px] text-zinc-400 font-bold uppercase ml-1">CTA Button Link</label>
+                      <AdminInput value={homepageForm.ctaLink} onChange={e => setHomepageForm({...homepageForm, ctaLink: e.target.value})} placeholder="e.g. /subjects" required />
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[9px] text-zinc-400 font-bold uppercase ml-1">Footer Description</label>
+                    <textarea value={homepageForm.footerDescription} onChange={e => setHomepageForm({...homepageForm, footerDescription: e.target.value})} className="w-full p-4 bg-slate-800 text-white rounded-xl text-sm border border-slate-700 outline-none" rows={3} placeholder="Text shown in the footer area..." required />
+                  </div>
+                </div>
 
-            <div className="space-y-4 mt-8">
-               <h4 className="text-white font-black text-xs uppercase tracking-widest border-b border-slate-800 pb-2 flex items-center gap-2">
-                  <FileText className="h-4 w-4" /> Published Articles
-               </h4>
-               <div className="grid grid-cols-1 gap-4">
-                  {articles.map((art: Article) => (
-                     <div key={art.id} className="p-4 bg-slate-800/40 rounded-xl border border-slate-700 flex justify-between items-center group">
-                        <div className="flex items-center gap-4">
-                           {art.imageUrl && (
-                             <div className="w-16 h-10 rounded border border-slate-700 overflow-hidden">
-                                <img src={art.imageUrl} className="w-full h-full object-cover" alt="" />
-                             </div>
-                           )}
-                           <div className="flex flex-col">
-                              <h6 className="text-white font-bold text-sm uppercase">{art.title}</h6>
-                              <span className="text-[9px] text-zinc-500 uppercase font-black">{art.date} • {art.category}</span>
-                           </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                           <button onClick={() => {
-                              setEditingArticleId(art.id);
-                              setArticleForm({
-                                 title: art.title,
-                                 content: art.content,
-                                 category: art.category,
-                                 imageUrl: art.imageUrl || '',
-                                 seoKeywords: art.seoKeywords || '',
-                                 seoTags: art.seoTags || ''
-                              });
-                              window.scrollTo({ top: 0, behavior: 'smooth' });
-                           }} className="p-2 text-indigo-400 hover:bg-indigo-400/10 rounded-lg">
-                              <Edit3 className="h-4 w-4" />
-                           </button>
-                           <button onClick={() => { if(window.confirm('Delete this article?')) onDeleteArticle(art.id); }} className="p-2 text-rose-500 hover:bg-rose-500/10 rounded-lg">
-                              <Trash2 className="h-4 w-4" />
-                           </button>
-                        </div>
+                <button type="submit" disabled={isPublishingArticle} className="w-full bg-indigo-600 hover:bg-indigo-500 text-white py-5 rounded-xl font-black text-[10px] uppercase tracking-[0.3em] shadow-2xl transition-all">
+                  {isPublishingArticle ? <Loader2 className="h-4 w-4 animate-spin mx-auto" /> : "Save Homepage Settings"}
+                </button>
+             </form>
+          </div>
+        )}
+
+        {(activeTab === 'articles' || activeTab === 'exam-prep' || activeTab === 'study-guides') && (
+          <div className="space-y-8 animate-in fade-in">
+             <form onSubmit={async (e) => { 
+                e.preventDefault(); if (!articleForm.title || !articleForm.content) return;
+                setIsPublishingArticle(true);
+                try {
+                  const localDate = new Date().toLocaleDateString('en-PK', { day: '2-digit', month: 'short', year: 'numeric' });
+                  const type = activeTab === 'exam-prep' ? ArticleType.EXAM_GUIDE : 
+                               activeTab === 'study-guides' ? ArticleType.STUDY_GUIDE : 
+                               articleForm.type;
+                  const newArt: Article = { id: editingArticleId || `art_${Date.now()}`, date: localDate, ...articleForm, type };
+                  await onAddArticle(newArt); 
+                  setArticleForm({ title: '', content: '', category: '', type: ArticleType.ARTICLE, imageUrl: '', seoKeywords: '', seoTags: '' });
+                  setEditingArticleId(null);
+                  alert(`${activeTab === 'exam-prep' ? 'Exam Prep' : activeTab === 'study-guides' ? 'Study Guide' : 'Article'} Published.`);
+                } catch (err) { alert("Failed."); } finally { setIsPublishingArticle(false); }
+             }} className="bg-slate-800/30 p-8 rounded-3xl border border-slate-700 space-y-6">
+                <h4 className="text-white font-heading font-black text-xs uppercase tracking-normal flex justify-between items-center mb-2">
+                   <span className="flex items-center gap-2">
+                     <FileText className={`h-4 w-4 ${activeTab === 'exam-prep' ? 'text-gold' : activeTab === 'study-guides' ? 'text-blue-500' : 'text-emerald-500'}`} /> 
+                     {activeTab === 'exam-prep' ? 'Exam Preparation Desk' : activeTab === 'study-guides' ? 'Study Guide Desk' : 'Editorial Desk'}
+                   </span>
+                   {editingArticleId && <button type="button" onClick={() => { setEditingArticleId(null); setArticleForm({ title: '', content: '', category: '', type: ArticleType.ARTICLE, imageUrl: '', seoKeywords: '', seoTags: '' }); }} className="text-rose-500 text-[9px]">Cancel Edit</button>}
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                   <div className="md:col-span-2 space-y-1">
+                     <label className="text-[9px] text-zinc-400 font-bold uppercase ml-1">Title</label>
+                     <AdminInput value={articleForm.title} onChange={e => setArticleForm({...articleForm, title: e.target.value})} placeholder={`${activeTab === 'exam-prep' ? 'Exam Prep' : activeTab === 'study-guides' ? 'Study Guide' : 'Article'} Headline`} required />
+                   </div>
+                   <div className="space-y-1">
+                     <label className="text-[9px] text-zinc-400 font-bold uppercase ml-1">Type</label>
+                     <AdminSelect 
+                       value={activeTab === 'exam-prep' ? ArticleType.EXAM_GUIDE : activeTab === 'study-guides' ? ArticleType.STUDY_GUIDE : articleForm.type} 
+                       onChange={e => setArticleForm({...articleForm, type: e.target.value as ArticleType})}
+                       disabled={activeTab !== 'articles'}
+                     >
+                        {Object.values(ArticleType).map(t => <option key={t} value={t}>{t}</option>)}
+                     </AdminSelect>
+                   </div>
+                </div>
+                <div className="space-y-1">
+                   <label className="text-[9px] text-zinc-400 font-bold uppercase ml-1">Category / Subject</label>
+                   <AdminInput value={articleForm.category} onChange={e => setArticleForm({...articleForm, category: e.target.value})} placeholder="e.g. Law, General Knowledge" required />
+                </div>
+                <div className="space-y-1">
+                   <label className="text-[9px] text-zinc-400 font-bold uppercase ml-1 flex justify-between items-center">
+                     Content (Markdown Supported)
+                       <button 
+                         type="button" 
+                         onClick={async () => {
+                           if (!articleForm.content) return;
+                           setIsHumanizing(true);
+                           const h = await humanizeContent(articleForm.content);
+                           setHumanizerData({
+                             original: articleForm.content,
+                             humanized: h,
+                             onApply: (val) => setArticleForm(prev => ({ ...prev, content: val }))
+                           });
+                           setIsHumanizing(false);
+                         }}
+                         disabled={isHumanizing || !articleForm.content}
+                         className="text-gold-light hover:text-gold flex items-center gap-1 transition-all disabled:opacity-50"
+                       >
+                         {isHumanizing ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+                         Humanize Content
+                       </button>
+                   </label>
+                   <textarea value={articleForm.content} onChange={e => setArticleForm({...articleForm, content: e.target.value})} className="w-full p-4 bg-slate-800 text-white rounded-xl text-sm border border-slate-700 outline-none font-mono" rows={10} placeholder="Write your content here..." required />
+                </div>
+                <div className="flex flex-col sm:flex-row items-center gap-6 p-4 bg-slate-900/50 rounded-2xl border border-slate-800">
+                   <button type="button" onClick={() => articleImageRef.current?.click()} className="px-6 py-3 bg-slate-700 hover:bg-slate-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg flex items-center gap-2">
+                      <ImageIcon className="h-4 w-4" /> Feature Image
+                   </button>
+                   <input type="file" ref={articleImageRef} onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      const reader = new FileReader();
+                      reader.onload = (event) => setArticleForm(prev => ({ ...prev, imageUrl: event.target?.result as string }));
+                      reader.readAsDataURL(file);
+                   }} className="hidden" accept="image/*" />
+                   {articleForm.imageUrl && (
+                     <div className="relative group h-24 w-40 rounded-lg overflow-hidden border border-slate-700">
+                        <img src={articleForm.imageUrl} className="w-full h-full object-cover" alt="Preview" />
+                        <button type="button" onClick={() => setArticleForm({...articleForm, imageUrl: ''})} className="absolute top-1 right-1 bg-rose-600 p-1 rounded-full text-white"><Trash className="h-3 w-3" /></button>
                      </div>
-                  ))}
-                  {articles.length === 0 && <p className="text-center py-4 text-zinc-600 font-black uppercase text-[9px]">No articles published yet</p>}
-               </div>
-            </div>
+                   )}
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                   <div className="space-y-1">
+                     <label className="text-[9px] text-zinc-400 font-bold uppercase ml-1">SEO Keywords</label>
+                     <TagInput value={articleForm.seoKeywords} onChange={val => setArticleForm({...articleForm, seoKeywords: val})} placeholder="Type and press comma..." />
+                   </div>
+                   <div className="space-y-1">
+                     <label className="text-[9px] text-zinc-400 font-bold uppercase ml-1">SEO Tags</label>
+                     <TagInput value={articleForm.seoTags} onChange={val => setArticleForm({...articleForm, seoTags: val})} placeholder="Type and press comma..." />
+                   </div>
+                </div>
+                <button type="submit" disabled={isPublishingArticle} className={`w-full py-5 rounded-xl font-black text-[10px] uppercase tracking-[0.3em] shadow-2xl transition-all ${activeTab === 'exam-prep' ? 'bg-gold text-pakgreen' : activeTab === 'study-guides' ? 'bg-blue-600 text-white' : 'bg-emerald-600 text-white'}`}>
+                  {isPublishingArticle ? <Loader2 className="h-4 w-4 animate-spin mx-auto" /> : `Publish ${activeTab === 'exam-prep' ? 'Exam Prep' : activeTab === 'study-guides' ? 'Study Guide' : 'Article'}`}
+                </button>
+             </form>
+
+             <div className="space-y-4 mt-8">
+                <h4 className="text-white font-black text-xs uppercase tracking-widest border-b border-slate-800 pb-2 flex items-center gap-2">
+                   <FileText className="h-4 w-4" /> {activeTab === 'exam-prep' ? 'Exam Prep Registry' : activeTab === 'study-guides' ? 'Study Guide Registry' : 'Article Registry'}
+                </h4>
+                <div className="grid grid-cols-1 gap-4">
+                   {articles.filter(a => a.id !== 'homepage_settings' && (
+                     activeTab === 'exam-prep' ? a.type === ArticleType.EXAM_GUIDE :
+                     activeTab === 'study-guides' ? a.type === ArticleType.STUDY_GUIDE :
+                     a.type === ArticleType.ARTICLE
+                   )).map(a => (
+                      <div key={a.id} className="p-4 bg-slate-800/40 rounded-xl border border-slate-700 flex justify-between items-center group">
+                         <div className="flex flex-col">
+                            <h6 className="text-white font-bold text-sm uppercase">{a.title}</h6>
+                            <span className="text-[9px] text-zinc-500 uppercase font-black">{a.date} • {a.category}</span>
+                         </div>
+                         <div className="flex items-center gap-2">
+                            <button onClick={() => {
+                               setEditingArticleId(a.id);
+                               setArticleForm({
+                                  title: a.title,
+                                  content: a.content,
+                                  category: a.category,
+                                  type: a.type || ArticleType.ARTICLE,
+                                  imageUrl: a.imageUrl || '',
+                                  seoKeywords: a.seoKeywords || '',
+                                  seoTags: a.seoTags || ''
+                               });
+                               window.scrollTo({ top: 0, behavior: 'smooth' });
+                            }} className="p-2 text-indigo-400 hover:bg-indigo-400/10 rounded-lg">
+                               <Edit3 className="h-4 w-4" />
+                            </button>
+                            <button onClick={() => { if(window.confirm('Delete this?')) onDeleteArticle(a.id); }} className="p-2 text-rose-500 hover:bg-rose-500/10 rounded-lg">
+                               <Trash2 className="h-4 w-4" />
+                            </button>
+                         </div>
+                      </div>
+                   ))}
+                   {articles.filter(a => a.id !== 'homepage_settings' && (
+                     activeTab === 'exam-prep' ? a.type === ArticleType.EXAM_GUIDE :
+                     activeTab === 'study-guides' ? a.type === ArticleType.STUDY_GUIDE :
+                     a.type === ArticleType.ARTICLE
+                   )).length === 0 && <p className="text-center py-4 text-zinc-600 font-black uppercase text-[9px]">Registry is empty</p>}
+                </div>
+             </div>
           </div>
         )}
 
@@ -1108,6 +1291,75 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
           </div>
         )}
       </div>
+
+      {/* Humanizer Comparison Modal */}
+      {humanizerData && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-slate-900 border border-slate-700 rounded-[32px] w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl">
+            <div className="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-900/50">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-gold/10 rounded-lg">
+                  <Sparkles className="h-5 w-5 text-gold" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-heading font-black text-white uppercase tracking-tight">Humanize Content</h3>
+                  <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">Review and apply AI humanization</p>
+                </div>
+              </div>
+              <button onClick={() => setHumanizerData(null)} className="p-2 hover:bg-slate-800 rounded-full transition-colors text-zinc-400"><XCircle className="h-6 w-6" /></button>
+            </div>
+
+            <div className="flex-grow overflow-y-auto p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-3">
+                <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-zinc-700" /> Original Content
+                </label>
+                <div className="p-4 bg-slate-950 border border-slate-800 rounded-2xl text-sm text-zinc-400 h-[400px] overflow-y-auto whitespace-pre-wrap leading-relaxed">
+                  {humanizerData.original}
+                </div>
+              </div>
+              <div className="space-y-3">
+                <label className="text-[10px] font-black text-gold uppercase tracking-widest flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-gold animate-pulse" /> Humanized Version
+                </label>
+                <div className="p-4 bg-slate-950 border border-gold/20 rounded-2xl text-sm text-white h-[400px] overflow-y-auto whitespace-pre-wrap leading-relaxed ring-1 ring-gold/5">
+                  {humanizerData.humanized}
+                </div>
+              </div>
+            </div>
+
+            <div className="p-6 border-t border-slate-800 bg-slate-900/50 flex justify-end gap-4">
+              <button 
+                onClick={() => setHumanizerData(null)}
+                className="px-8 py-3 text-zinc-400 font-black uppercase text-[10px] tracking-widest hover:text-white transition-colors"
+              >
+                Discard
+              </button>
+              <button 
+                onClick={() => {
+                  humanizerData.onApply(humanizerData.humanized);
+                  setHumanizerData(null);
+                  setShowSuccessToast(true);
+                  setTimeout(() => setShowSuccessToast(false), 3000);
+                }}
+                className="px-10 py-3 bg-gold text-pakgreen font-black uppercase text-[10px] tracking-widest rounded-xl hover:scale-105 transition-all shadow-lg shadow-gold/10"
+              >
+                Apply Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Success Toast */}
+      {showSuccessToast && (
+        <div className="fixed bottom-8 right-8 z-[110] animate-in slide-in-from-bottom-4 fade-in duration-300">
+          <div className="bg-emerald-500 text-white px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-3 border border-emerald-400/50">
+            <CheckCircle2 className="h-5 w-5" />
+            <span className="font-black uppercase text-[10px] tracking-widest">Content Humanized Successfully!</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

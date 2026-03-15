@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Link, useLocation } from 'react-router-dom';
-import { BookOpen, Search, X, ListChecks, FileText, ChevronRight, Download } from 'lucide-react';
+import { BookOpen, Search, X, ListChecks, FileText, ChevronRight, Download, MapPin, Mail, Phone } from 'lucide-react';
 
 // Context & Utils
 import { DataProvider, useData } from './context/DataContext';
@@ -26,6 +26,11 @@ import Disclaimer from './pages/disclaimer';
 import ArticleView from './pages/article-view';
 import AdminView from './pages/admin-view';
 import RegistryView from './pages/registry-view';
+import SubjectsView from './pages/SubjectsView';
+import ExamPrepView from './pages/ExamPrepView';
+import StudyGuidesView from './pages/StudyGuidesView';
+import StudyGuideDetail from './pages/StudyGuideDetail';
+import ResourcesView from './pages/ResourcesView';
 
 const AppContent: React.FC = () => {
   const { notifications, quizzes, notes, categories, ads, isLoading } = useData();
@@ -68,18 +73,25 @@ const AppContent: React.FC = () => {
       canonical.setAttribute('rel', 'canonical');
       document.head.appendChild(canonical);
     }
-    const cleanPath = location.pathname === '/' ? '' : location.pathname;
-    canonical.setAttribute('href', `https://mmtestpreparation.com${cleanPath}`);
+    // Normalize path: remove trailing slash if it exists (except for root)
+    let cleanPath = location.pathname;
+    if (cleanPath.length > 1 && cleanPath.endsWith('/')) {
+      cleanPath = cleanPath.slice(0, -1);
+    }
+    const finalPath = cleanPath === '/' ? '' : cleanPath;
+    const finalUrl = `https://mmtestpreparation.com${finalPath}`;
+    
+    canonical.setAttribute('href', finalUrl);
 
     // Update OG URL
     let ogUrl = document.querySelector('meta[property="og:url"]');
     if (ogUrl) {
-      ogUrl.setAttribute('content', `https://mmtestpreparation.com${cleanPath}`);
+      ogUrl.setAttribute('content', finalUrl);
     }
 
     // Dynamic Titles
     const pageTitles: Record<string, string> = {
-      '/': 'MM Academy - SPSC, MDCAT, ECAT & HEC Test Preparation Pakistan',
+      '': 'MM Academy - SPSC, MDCAT, ECAT & HEC Test Preparation Pakistan',
       '/about': 'About Us - MM Academy',
       '/contact': 'Contact Us - MM Academy',
       '/registry': 'Full Registry - MM Academy',
@@ -89,8 +101,8 @@ const AppContent: React.FC = () => {
       '/disclaimer': 'Disclaimer - MM Academy',
     };
     
-    if (pageTitles[location.pathname]) {
-      document.title = pageTitles[location.pathname];
+    if (pageTitles[finalPath]) {
+      document.title = pageTitles[finalPath];
     }
 
     // TAGS: Track Page View (Measurement)
@@ -254,6 +266,11 @@ const AppContent: React.FC = () => {
 
         <Routes>
           <Route path="/" element={<Home setActiveImage={setActiveImage} />} />
+          <Route path="/subjects" element={<SubjectsView />} />
+          <Route path="/exam-preparation" element={<ExamPrepView />} />
+          <Route path="/study-guides" element={<StudyGuidesView />} />
+          <Route path="/study-guide/:id" element={<StudyGuideDetail />} />
+          <Route path="/resources" element={<ResourcesView />} />
           <Route path="/category/:id" element={<CategoryView />} />
           <Route path="/quiz/:id" element={<QuizView />} />
           <Route path="/news" element={<NewsView setActiveImage={setActiveImage} />} />
@@ -269,32 +286,79 @@ const AppContent: React.FC = () => {
         </Routes>
       </main>
 
-      <footer className="bg-white dark:bg-pakgreen-dark/95 backdrop-blur-md border-t-4 border-gold-light py-12 mt-auto">
-         <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-3 items-center gap-10">
-            <div className="text-center md:text-left font-black text-[10px] sm:text-xs uppercase tracking-widest text-zinc-500 dark:text-zinc-400">
-               © 2026 All Rights Reserved By <span className="text-pakgreen dark:text-gold">MM Academy</span>
-            </div>
-            <div className="flex flex-col items-center gap-6">
-               <div className="flex items-center gap-3">
-                  <BookOpen className="h-10 w-10 text-pakgreen dark:text-gold-light" />
-                  <span className="text-3xl font-heading font-black uppercase text-pakgreen dark:text-gold-light tracking-normal">MM Academy</span>
+      <footer className="bg-white dark:bg-pakgreen-dark/95 backdrop-blur-md border-t-4 border-gold-light py-16 mt-auto">
+         <div className="max-w-7xl mx-auto px-6">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-16">
+               <div className="space-y-6">
+                  <div className="flex items-center gap-3">
+                     <BookOpen className="h-8 w-8 text-pakgreen dark:text-gold-light" />
+                     <span className="text-2xl font-heading font-black uppercase text-pakgreen dark:text-gold-light tracking-normal">MM Academy</span>
+                  </div>
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed font-medium">
+                     MM Academy is a dedicated educational platform providing comprehensive study materials, exam preparation guides, and interactive assessments for students across Pakistan.
+                  </p>
                </div>
-               <div className="flex flex-wrap justify-center gap-x-8 gap-y-4 text-[10px] font-black uppercase tracking-widest text-zinc-400">
-                  <Link to="/about" className="hover:text-gold transition-colors">About Us</Link>
-                  <Link to="/contact" className="hover:text-gold transition-colors">Contact Us</Link>
+               
+               <div>
+                  <h4 className="text-sm font-black text-pakgreen dark:text-gold uppercase tracking-widest mb-6">Quick Links</h4>
+                  <ul className="space-y-4 text-[11px] font-black uppercase tracking-widest text-zinc-400">
+                     <li><Link to="/" className="hover:text-gold transition-colors">Home</Link></li>
+                     <li><Link to="/about" className="hover:text-gold transition-colors">About Us</Link></li>
+                     <li><Link to="/contact" className="hover:text-gold transition-colors">Contact Us</Link></li>
+                     <li><Link to="/registry" className="hover:text-gold transition-colors">Registry</Link></li>
+                  </ul>
+               </div>
+
+               <div>
+                  <h4 className="text-sm font-black text-pakgreen dark:text-gold uppercase tracking-widest mb-6">Subject Categories</h4>
+                  <ul className="space-y-4 text-[11px] font-black uppercase tracking-widest text-zinc-400">
+                     <li><Link to="/subjects" className="hover:text-gold transition-colors">All Subjects</Link></li>
+                     <li><Link to="/exam-preparation" className="hover:text-gold transition-colors">Exam Prep</Link></li>
+                     <li><Link to="/study-guides" className="hover:text-gold transition-colors">Study Guides</Link></li>
+                     <li><Link to="/resources" className="hover:text-gold transition-colors">Resources</Link></li>
+                  </ul>
+               </div>
+
+              <div>
+                 <h4 className="text-sm font-black text-pakgreen dark:text-gold uppercase tracking-widest mb-6">Contact Info</h4>
+                 <ul className="space-y-4 text-[11px] font-black uppercase tracking-widest text-zinc-400">
+                    <li className="flex items-center gap-3">
+                       <div className="p-2 bg-gold/10 rounded-lg text-gold">
+                          <MapPin className="h-4 w-4" />
+                       </div>
+                       Mirpurkhas, Sindh, Pakistan
+                    </li>
+                    <li className="flex items-center gap-3">
+                       <div className="p-2 bg-gold/10 rounded-lg text-gold">
+                          <Mail className="h-4 w-4" />
+                       </div>
+                       mmacademy26@gmail.com
+                    </li>
+                    <li className="flex items-center gap-3">
+                       <div className="p-2 bg-gold/10 rounded-lg text-gold">
+                          <Phone className="h-4 w-4" />
+                       </div>
+                       03182990927
+                    </li>
+                 </ul>
+              </div>
+            </div>
+
+            <div className="pt-12 border-t border-zinc-100 dark:border-white/10 flex flex-col md:flex-row justify-between items-center gap-8">
+               <div className="flex flex-wrap justify-center md:justify-start gap-x-8 gap-y-4 text-[10px] font-black uppercase tracking-widest text-zinc-400">
                   <Link to="/privacy-policy" className="hover:text-gold transition-colors">Privacy Policy</Link>
                   <Link to="/terms" className="hover:text-gold transition-colors">Terms & Conditions</Link>
                   <Link to="/disclaimer" className="hover:text-gold transition-colors">Disclaimer</Link>
-                  <Link to="/registry" className="hover:text-gold transition-colors">Registry</Link>
                   <a href="/sitemap.xml" target="_blank" className="hover:text-gold transition-colors">Sitemap</a>
                </div>
+               
                <div className="flex gap-4">
                   {socialLinks.map(s => <a key={s.label} href={s.url} target="_blank" rel="noopener noreferrer" className="text-zinc-400 hover:text-gold transition-colors"><s.icon className="h-5 w-5" /></a>)}
                </div>
-            </div>
-            <div className="text-center md:text-right font-black text-[10px] sm:text-xs uppercase tracking-widest text-zinc-500 dark:text-zinc-400 leading-loose">
-               Architected & Developed By <br />
-               <a href="https://marketingclub.com.pk" target="_blank" rel="noopener noreferrer" className="text-pakgreen dark:text-gold-light hover:text-gold transition-colors underline decoration-2 underline-offset-4 font-black">marketing club</a>
+
+               <div className="text-center md:text-right font-black text-[10px] uppercase tracking-widest text-zinc-500 dark:text-zinc-400">
+                  © 2026 MM Academy | Developed By <a href="https://marketingclub.com.pk" target="_blank" rel="noopener noreferrer" className="text-pakgreen dark:text-gold-light hover:text-gold transition-colors underline decoration-2 underline-offset-4">marketing club</a>
+               </div>
             </div>
          </div>
       </footer>

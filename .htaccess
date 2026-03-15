@@ -6,7 +6,11 @@
   RewriteCond %{REQUEST_URI} ^/api\.php [NC]
   RewriteRule .* - [L]
 
-  # 2. Standard SPA routing for React
+  # 2. Remove trailing slashes
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteRule ^(.*)/$ /$1 [L,R=301]
+
+  # 3. Standard SPA routing for React
   RewriteRule ^index\.html$ - [L]
   RewriteCond %{REQUEST_FILENAME} !-f
   RewriteCond %{REQUEST_FILENAME} !-d

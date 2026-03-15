@@ -22,12 +22,12 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery, setSearchQuery, searchFilt
 
   const navItems = [
     { label: 'Home', path: '/' },
-    { label: 'LLB Notes', path: '/category/llb-s1' },
-    { label: 'MDCAT Series', path: '/category/mcat' },
-    { label: 'SPSC Tests', path: '/category/spsc' },
-    { label: 'News', path: '/news' },
-    { label: 'Registry', path: '/registry' },
-    { label: 'Contact', path: '/contact' }
+    { label: 'Subjects', path: '/subjects' },
+    { label: 'Exam Preparation', path: '/exam-preparation' },
+    { label: 'Study Guides', path: '/study-guides' },
+    { label: 'Resources', path: '/resources' },
+    { label: 'About Us', path: '/about' },
+    { label: 'Contact Us', path: '/contact' }
   ];
 
   const handleNavClick = () => {

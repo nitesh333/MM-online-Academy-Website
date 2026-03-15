@@ -80,16 +80,31 @@ export interface PrivateAd {
   placement: 'header' | 'sidebar' | 'content' | 'footer';
 }
 
+export enum ArticleType {
+  ARTICLE = 'Article',
+  STUDY_GUIDE = 'Study Guide',
+  EXAM_GUIDE = 'Exam Guide'
+}
+
 export interface Article {
   id: string;
   title: string;
   content: string;
   imageUrl?: string;
   category: string;
+  type: ArticleType;
   date: string;
   author?: string;
   seoKeywords?: string;
   seoTags?: string;
+}
+
+export interface HomepageSettings {
+  heroTitle: string;
+  heroDescription: string;
+  footerDescription: string;
+  ctaText: string;
+  ctaLink: string;
 }
 
 export interface AppState {
