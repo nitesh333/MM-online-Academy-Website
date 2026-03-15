@@ -21,7 +21,7 @@ const StudyGuidesView: React.FC = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
           >
-            <span className="text-gold font-black uppercase text-[12px] tracking-[0.5em] mb-4 block">Expert Guidance</span>
+            <span className="text-gold font-black uppercase text-xs tracking-[0.5em] mb-4 block">Expert Guidance</span>
             <h1 className="text-5xl md:text-7xl font-heading font-black text-pakgreen dark:text-white uppercase tracking-tight mb-8">Study Guides</h1>
             <p className="text-zinc-600 dark:text-zinc-400 text-lg max-w-2xl mx-auto leading-relaxed font-medium">
               Master complex topics with our in-depth study guides. Each guide is structured to provide clear explanations, key takeaways, and strategic insights for academic success.
@@ -43,13 +43,13 @@ const StudyGuidesView: React.FC = () => {
                 <div className="p-4 bg-gold/10 rounded-2xl text-gold">
                   <FileText className="h-6 w-6" />
                 </div>
-                <span className="text-[10px] font-black text-gold uppercase tracking-widest">{guide.category}</span>
+                <span className="text-xs font-black text-gold uppercase tracking-widest">{guide.category}</span>
               </div>
               <h3 className="text-2xl font-heading font-black text-pakgreen dark:text-white uppercase mb-6 leading-tight group-hover:text-gold transition-colors">{guide.title}</h3>
               <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed mb-8 line-clamp-3">
                 {guide.content.substring(0, 150)}...
               </p>
-              <div className="flex items-center gap-2 text-[10px] font-black text-gold uppercase tracking-widest">
+              <div className="flex items-center gap-2 text-xs font-black text-gold uppercase tracking-widest">
                 Read Full Guide <ArrowRight className="h-4 w-4" />
               </div>
             </motion.div>

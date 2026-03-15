@@ -25,7 +25,7 @@ const ResourcesView: React.FC = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
           >
-            <span className="text-gold font-black uppercase text-[12px] tracking-[0.5em] mb-4 block">Educational Assets</span>
+            <span className="text-gold font-black uppercase text-xs tracking-[0.5em] mb-4 block">Educational Assets</span>
             <h1 className="text-5xl md:text-7xl font-heading font-black text-pakgreen dark:text-white uppercase tracking-tight mb-8">Study Resources</h1>
             <p className="text-zinc-600 dark:text-zinc-400 text-lg max-w-2xl mx-auto leading-relaxed font-medium">
               Access our curated library of educational resources, including downloadable PDF notes, interactive practice modules, and comprehensive reference materials.
@@ -53,7 +53,7 @@ const ResourcesView: React.FC = () => {
               {/* SEO Tags */}
               <div className="flex flex-wrap gap-2 mb-8">
                 {(res.seoTags || 'Study, Notes, Education').split(',').map(tag => (
-                  <span key={tag} className="px-3 py-1 bg-zinc-100 dark:bg-white/5 rounded-full text-[8px] font-black text-zinc-400 uppercase tracking-widest">
+                  <span key={tag} className="px-3 py-1 bg-zinc-100 dark:bg-white/5 rounded-full text-xs font-black text-zinc-400 uppercase tracking-widest">
                     {tag.trim()}
                   </span>
                 ))}
@@ -64,7 +64,7 @@ const ResourcesView: React.FC = () => {
                 download={`${res.title.replace(/\s+/g, '_')}.pdf`}
                 target="_blank" 
                 rel="noopener noreferrer"
-                className="w-full px-8 py-4 bg-pakgreen dark:bg-gold text-white dark:text-pakgreen rounded-xl font-black uppercase text-[10px] tracking-widest flex items-center justify-center gap-2"
+                className="w-full px-8 py-4 bg-pakgreen dark:bg-gold text-white dark:text-pakgreen rounded-xl font-black uppercase text-xs tracking-widest flex items-center justify-center gap-2"
               >
                 <Download className="h-4 w-4" /> Download Resource
               </a>
@@ -87,7 +87,7 @@ const ResourcesView: React.FC = () => {
                   <h4 className="text-sm font-heading font-black text-pakgreen dark:text-white uppercase mb-4 text-gold">
                     {catName}
                   </h4>
-                  <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest">{catNotes.length} Resources Available</p>
+                  <p className="text-xs text-zinc-400 font-bold uppercase tracking-widest">{catNotes.length} Resources Available</p>
                 </div>
               ))}
             </div>

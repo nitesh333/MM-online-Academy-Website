@@ -39,7 +39,7 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery, setSearchQuery, searchFilt
     <div className="flex flex-col w-full bg-white dark:bg-pakgreen-deepest/95 backdrop-blur-md relative shadow-sm border-b border-pakgreen/10 dark:border-gold/10 transition-colors z-[100]">
       {/* Top Info Bar */}
       <div className="bg-pakgreen dark:bg-pakgreen-dark border-b border-gold/30 hidden md:block">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 flex justify-between items-center text-[10px] font-black text-white uppercase tracking-widest">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 flex justify-between items-center text-xs font-black text-white uppercase tracking-widest">
           <div className="flex items-center gap-4">
             <a href="tel:03182990927" className="flex items-center gap-1.5 hover:text-gold-light transition-colors"><Phone className="h-3 w-3 text-gold-light" /> 03182990927</a>
             <a href="mailto:mmacademy26@gmail.com" className="flex items-center gap-1.5 border-l border-white/20 pl-4 hover:text-gold-light transition-colors uppercase"><Mail className="h-3 w-3 text-gold-light" /> mmacademy26@gmail.com</a>
@@ -71,7 +71,7 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery, setSearchQuery, searchFilt
           </div>
           <div className="flex flex-col overflow-hidden">
             <h1 className="text-base sm:text-lg md:text-4xl font-heading font-black text-pakgreen dark:text-gold-light leading-none uppercase tracking-normal truncate">MM Academy</h1>
-            <p className="text-[7px] sm:text-[9px] md:text-xs font-black text-zinc-500 dark:text-zinc-400 mt-1 tracking-[0.2em] uppercase truncate">Online Jobs Preparation Platform</p>
+            <p className="text-[9px] sm:text-xs md:text-sm font-black text-zinc-500 dark:text-zinc-400 mt-1 tracking-[0.2em] uppercase truncate">Online Jobs Preparation Platform</p>
           </div>
         </Link>
 
@@ -98,7 +98,7 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery, setSearchQuery, searchFilt
                   <button 
                     key={f}
                     onClick={() => setSearchFilter(f)}
-                    className={`flex-grow py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all border ${searchFilter === f ? 'bg-pakgreen dark:bg-gold text-white dark:text-pakgreen border-transparent shadow-md' : 'bg-zinc-50 dark:bg-pakgreen-dark text-zinc-500 border-zinc-100 dark:border-gold/5 hover:bg-zinc-100'}`}
+                    className={`flex-grow py-2 rounded-lg text-xs font-black uppercase tracking-widest transition-all border ${searchFilter === f ? 'bg-pakgreen dark:bg-gold text-white dark:text-pakgreen border-transparent shadow-md' : 'bg-zinc-50 dark:bg-pakgreen-dark text-zinc-500 border-zinc-100 dark:border-gold/5 hover:bg-zinc-100'}`}
                   >
                     {f}
                   </button>
@@ -128,7 +128,7 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery, setSearchQuery, searchFilt
               <Link 
                 key={item.label}
                 to={item.path}
-                className="text-white/90 hover:text-gold-light hover:bg-white/5 px-6 py-4 text-[11px] font-black uppercase tracking-[0.2em] transition-all border-r border-white/10 last:border-r-0 hover:shadow-[0_0_20px_rgba(212,175,55,0.2)]"
+                className="text-white/90 hover:text-gold-light hover:bg-white/5 px-6 py-4 text-xs font-black uppercase tracking-[0.2em] transition-all border-r border-white/10 last:border-r-0 hover:shadow-[0_0_20px_rgba(212,175,55,0.2)]"
               >
                 {item.label}
               </Link>
@@ -169,7 +169,7 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery, setSearchQuery, searchFilt
                     </div>
                     <div className="flex items-center gap-4">
                       <div className="flex flex-col items-end">
-                        <span className="text-[8px] font-black text-gold uppercase tracking-widest mb-1">Theme</span>
+                        <span className="text-xs font-black text-gold uppercase tracking-widest mb-1">Theme</span>
                         <ThemeToggle theme={theme} toggleTheme={toggleTheme} />
                       </div>
                       <button 
@@ -182,7 +182,7 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery, setSearchQuery, searchFilt
                  </div>
                  <div className="flex flex-col gap-2 px-2">
                    <span className="text-sm font-serif font-bold text-pakgreen dark:text-gold-light" style={{ direction: 'rtl' }}>ربِّ زِدْنِي عِلْماً</span>
-                   <span className="text-[10px] font-black text-gold uppercase tracking-[0.3em]">Institutional Portal</span>
+                   <span className="text-xs font-black text-gold uppercase tracking-[0.3em]">Institutional Portal</span>
                  </div>
               </div>
               
@@ -201,7 +201,7 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery, setSearchQuery, searchFilt
                      >
                        <div className="flex items-center gap-4">
                          <div className="w-1.5 h-1.5 rounded-full bg-gold/30 group-hover:bg-gold group-hover:scale-150 transition-all" />
-                         <span className="text-[12px] font-black uppercase tracking-[0.2em]">{item.label}</span>
+                         <span className="text-sm font-black uppercase tracking-[0.2em]">{item.label}</span>
                        </div>
                        <ChevronRight className="h-4 w-4 opacity-30 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
                      </Link>
@@ -215,7 +215,7 @@ const Navbar: React.FC<NavbarProps> = ({ searchQuery, setSearchQuery, searchFilt
                   <a href="https://www.instagram.com/majid.maqsood01/?hl=en" target="_blank" rel="noopener noreferrer" className="p-3 bg-white dark:bg-white/5 rounded-xl text-pakgreen dark:text-gold-light shadow-md hover:scale-110 transition-transform"><Instagram className="h-5 w-5" /></a>
                   <a href="https://www.linkedin.com/in/majid-maqsood-633444374/" target="_blank" rel="noopener noreferrer" className="p-3 bg-white dark:bg-white/5 rounded-xl text-pakgreen dark:text-gold-light shadow-md hover:scale-110 transition-transform"><Linkedin className="h-5 w-5" /></a>
                 </div>
-                <p className="text-center text-[8px] font-black text-zinc-400 uppercase tracking-[0.3em] mt-6 leading-relaxed">
+                <p className="text-center text-xs font-black text-zinc-400 uppercase tracking-[0.3em] mt-6 leading-relaxed">
                   MM Academy &copy; 2026<br/>Pakistan's Elite Legal Portal
                 </p>
               </div>

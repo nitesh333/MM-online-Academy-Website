@@ -301,7 +301,7 @@ const AppContent: React.FC = () => {
                
                <div>
                   <h4 className="text-sm font-black text-pakgreen dark:text-gold uppercase tracking-widest mb-6">Quick Links</h4>
-                  <ul className="space-y-4 text-[11px] font-black uppercase tracking-widest text-zinc-400">
+                  <ul className="space-y-4 text-xs font-black uppercase tracking-widest text-zinc-400">
                      <li><Link to="/" className="hover:text-gold transition-colors">Home</Link></li>
                      <li><Link to="/about" className="hover:text-gold transition-colors">About Us</Link></li>
                      <li><Link to="/contact" className="hover:text-gold transition-colors">Contact Us</Link></li>
@@ -311,7 +311,7 @@ const AppContent: React.FC = () => {
 
                <div>
                   <h4 className="text-sm font-black text-pakgreen dark:text-gold uppercase tracking-widest mb-6">Subject Categories</h4>
-                  <ul className="space-y-4 text-[11px] font-black uppercase tracking-widest text-zinc-400">
+                  <ul className="space-y-4 text-xs font-black uppercase tracking-widest text-zinc-400">
                      <li><Link to="/subjects" className="hover:text-gold transition-colors">All Subjects</Link></li>
                      <li><Link to="/exam-preparation" className="hover:text-gold transition-colors">Exam Prep</Link></li>
                      <li><Link to="/study-guides" className="hover:text-gold transition-colors">Study Guides</Link></li>
@@ -345,7 +345,7 @@ const AppContent: React.FC = () => {
             </div>
 
             <div className="pt-12 border-t border-zinc-100 dark:border-white/10 flex flex-col md:flex-row justify-between items-center gap-8">
-               <div className="flex flex-wrap justify-center md:justify-start gap-x-8 gap-y-4 text-[10px] font-black uppercase tracking-widest text-zinc-400">
+               <div className="flex flex-wrap justify-center md:justify-start gap-x-8 gap-y-4 text-xs font-black uppercase tracking-widest text-zinc-400">
                   <Link to="/privacy-policy" className="hover:text-gold transition-colors">Privacy Policy</Link>
                   <Link to="/terms" className="hover:text-gold transition-colors">Terms & Conditions</Link>
                   <Link to="/disclaimer" className="hover:text-gold transition-colors">Disclaimer</Link>
@@ -356,7 +356,7 @@ const AppContent: React.FC = () => {
                   {socialLinks.map(s => <a key={s.label} href={s.url} target="_blank" rel="noopener noreferrer" className="text-zinc-400 hover:text-gold transition-colors"><s.icon className="h-5 w-5" /></a>)}
                </div>
 
-               <div className="text-center md:text-right font-black text-[10px] uppercase tracking-widest text-zinc-500 dark:text-zinc-400">
+               <div className="text-center md:text-right font-black text-xs uppercase tracking-widest text-zinc-500 dark:text-zinc-400">
                   © 2026 MM Academy | Developed By <a href="https://marketingclub.com.pk" target="_blank" rel="noopener noreferrer" className="text-pakgreen dark:text-gold-light hover:text-gold transition-colors underline decoration-2 underline-offset-4">marketing club</a>
                </div>
             </div>

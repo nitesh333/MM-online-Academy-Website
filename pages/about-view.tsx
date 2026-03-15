@@ -10,7 +10,7 @@ const AboutView: React.FC = () => {
           <BookOpen className="h-10 w-10 text-gold" />
         </div>
         <h1 className="text-5xl font-heading font-black text-pakgreen dark:text-white uppercase tracking-tight mb-4">About MM Academy</h1>
-        <p className="text-[11px] font-black text-gold-light uppercase tracking-[0.5em]">Pakistan's Elite Test Preparation Portal</p>
+        <p className="text-xs font-black text-gold-light uppercase tracking-[0.5em]">Pakistan's Elite Test Preparation Portal</p>
       </div>
 
       <div className="bg-white dark:bg-pakgreen-dark/40 backdrop-blur-xl p-10 sm:p-16 rounded-[50px] shadow-2xl border border-zinc-100 dark:border-white/10 space-y-12 text-zinc-600 dark:text-zinc-300">
@@ -47,17 +47,17 @@ const AboutView: React.FC = () => {
         <section className="grid grid-cols-1 md:grid-cols-3 gap-8 pt-12 border-t border-zinc-100 dark:border-white/10">
           <div className="text-center space-y-2">
             <MapPin className="h-6 w-6 text-gold mx-auto" />
-            <p className="text-[10px] font-black uppercase text-zinc-400">Location</p>
+            <p className="text-xs font-black uppercase text-zinc-400">Location</p>
             <p className="text-xs font-bold text-pakgreen dark:text-white">Mirpurkhas, Sindh</p>
           </div>
           <div className="text-center space-y-2">
             <Mail className="h-6 w-6 text-gold mx-auto" />
-            <p className="text-[10px] font-black uppercase text-zinc-400">Email</p>
+            <p className="text-xs font-black uppercase text-zinc-400">Email</p>
             <p className="text-xs font-bold text-pakgreen dark:text-white">mmonlineacademy26@gmail.com</p>
           </div>
           <div className="text-center space-y-2">
             <Phone className="h-6 w-6 text-gold mx-auto" />
-            <p className="text-[10px] font-black uppercase text-zinc-400">Phone</p>
+            <p className="text-xs font-black uppercase text-zinc-400">Phone</p>
             <p className="text-xs font-bold text-pakgreen dark:text-white">+92-318-2990927</p>
           </div>
         </section>

@@ -21,7 +21,7 @@ const ExamPrepView: React.FC = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
           >
-            <span className="text-gold font-black uppercase text-[12px] tracking-[0.5em] mb-4 block">Strategic Preparation</span>
+            <span className="text-gold font-black uppercase text-xs tracking-[0.5em] mb-4 block">Strategic Preparation</span>
             <h1 className="text-5xl md:text-7xl font-heading font-black text-pakgreen dark:text-white uppercase tracking-tight mb-8">Exam Preparation</h1>
             <p className="text-zinc-600 dark:text-zinc-400 text-lg max-w-2xl mx-auto leading-relaxed font-medium">
               Specialized preparation tracks for Pakistan's most competitive entrance and recruitment exams. Our structured approach ensures you focus on the most relevant topics and exam patterns.
@@ -45,7 +45,7 @@ const ExamPrepView: React.FC = () => {
                 <p className="text-zinc-300 text-sm leading-relaxed mb-8">
                   {guide.content.substring(0, 150)}...
                 </p>
-                <button onClick={() => navigate(`/article/${guide.id}`)} className="px-8 py-4 bg-gold text-pakgreen rounded-xl font-black uppercase text-[10px] tracking-widest flex items-center gap-2">
+                <button onClick={() => navigate(`/article/${guide.id}`)} className="px-8 py-4 bg-gold text-pakgreen rounded-xl font-black uppercase text-xs tracking-widest flex items-center gap-2">
                   Start Prep Track <ChevronRight className="h-4 w-4" />
                 </button>
               </div>

@@ -15,7 +15,7 @@ const SubjectsView: React.FC = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
           >
-            <span className="text-gold font-black uppercase text-[12px] tracking-[0.5em] mb-4 block">Academic Directory</span>
+            <span className="text-gold font-black uppercase text-xs tracking-[0.5em] mb-4 block">Academic Directory</span>
             <h1 className="text-5xl md:text-7xl font-heading font-black text-pakgreen dark:text-white uppercase tracking-tight mb-8">All Subjects</h1>
             <p className="text-zinc-600 dark:text-zinc-400 text-lg max-w-2xl mx-auto leading-relaxed font-medium">
               Explore our comprehensive range of academic subjects, each featuring curated study materials, practice questions, and expert guides to help you master the core concepts.
@@ -37,7 +37,7 @@ const SubjectsView: React.FC = () => {
               </div>
               <h3 className="text-2xl font-heading font-black text-pakgreen dark:text-white uppercase mb-4">{cat.name}</h3>
               <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed mb-8 line-clamp-3">{cat.description}</p>
-              <Link to={`/category/${cat.id}`} className="flex items-center gap-2 text-gold font-black text-[10px] uppercase tracking-widest">
+              <Link to={`/category/${cat.id}`} className="flex items-center gap-2 text-gold font-black text-xs uppercase tracking-widest">
                 Explore Subject <ArrowRight className="h-4 w-4" />
               </Link>
             </motion.div>

@@ -51,7 +51,7 @@ const Home: React.FC<HomeProps> = ({ setActiveImage }) => {
           >
             <div className="inline-flex items-center gap-2 px-4 py-2 bg-gold/5 border border-gold/20 rounded-full mb-6">
               <Star className="h-4 w-4 text-gold fill-current" />
-              <span className="text-[10px] font-black text-pakgreen dark:text-gold-light uppercase tracking-widest">Pakistan's Premier Educational Portal</span>
+              <span className="text-xs font-black text-pakgreen dark:text-gold-light uppercase tracking-widest">Pakistan's Premier Educational Portal</span>
             </div>
             <h1 className="text-4xl md:text-6xl font-heading font-black text-pakgreen dark:text-white uppercase tracking-tight mb-6 leading-tight">
               {heroTitle}
@@ -60,10 +60,10 @@ const Home: React.FC<HomeProps> = ({ setActiveImage }) => {
               {heroDescription}
             </p>
             <div className="flex flex-wrap justify-center gap-4">
-              <button onClick={() => navigate(ctaLink)} className="px-8 py-4 bg-pakgreen dark:bg-gold text-white dark:text-pakgreen rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl hover:scale-105 transition-all">
+              <button onClick={() => navigate(ctaLink)} className="px-8 py-4 bg-pakgreen dark:bg-gold text-white dark:text-pakgreen rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl hover:scale-105 transition-all">
                 {ctaText}
               </button>
-              <button onClick={() => navigate('/exam-preparation')} className="px-8 py-4 border-2 border-pakgreen/20 dark:border-gold/20 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all hover:bg-gold/5">
+              <button onClick={() => navigate('/exam-preparation')} className="px-8 py-4 border-2 border-pakgreen/20 dark:border-gold/20 rounded-2xl font-black uppercase text-xs tracking-widest transition-all hover:bg-gold/5">
                 Exam Preparation
               </button>
             </div>
@@ -71,8 +71,47 @@ const Home: React.FC<HomeProps> = ({ setActiveImage }) => {
         </div>
       </section>
 
+      {/* 2. SUBJECTS & CATEGORIES (PRIORITIZED) */}
+      <section className="max-w-7xl mx-auto px-6 py-12 lg:py-16">
+        <div className="flex flex-col md:flex-row justify-between items-end mb-12 gap-6">
+          <div className="text-left">
+            <span className="text-gold font-black uppercase text-xs tracking-[0.5em] mb-4 block">Academic Excellence</span>
+            <h2 className="text-3xl md:text-5xl font-heading font-black text-pakgreen dark:text-white uppercase tracking-tight">Explore Subjects</h2>
+          </div>
+          <Link to="/subjects" className="text-xs font-black text-gold uppercase tracking-widest hover:underline flex items-center gap-2">
+            View All Subjects <ArrowRight className="h-4 w-4" />
+          </Link>
+        </div>
+        
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
+          {categories.slice(0, 8).map((cat, idx) => (
+            <motion.div 
+              key={cat.id}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: idx * 0.05 }}
+              onClick={() => navigate(`/category/${cat.id}`)}
+              className="p-6 md:p-8 bg-white dark:bg-pakgreen-dark/30 border border-gold/10 rounded-3xl hover:border-gold transition-all cursor-pointer group shadow-lg flex flex-col justify-between min-h-[160px]"
+            >
+              <div>
+                <div className="w-10 h-10 bg-gold/10 rounded-xl flex items-center justify-center mb-4 group-hover:bg-gold group-hover:text-pakgreen transition-all">
+                  <BookOpen className="h-5 w-5" />
+                </div>
+                <h3 className="text-sm md:text-base font-heading font-black text-pakgreen dark:text-white uppercase leading-tight group-hover:text-gold transition-colors line-clamp-2">
+                  {cat.name}
+                </h3>
+              </div>
+              <div className="mt-4 flex items-center gap-2 text-gold font-black text-xs uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity">
+                Explore <ChevronRight className="h-3 w-3" />
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      </section>
+
       {/* 1.5 LATEST NEWS & NOTIFICATIONS */}
-      <section className="bg-gold/5 py-12 border-b border-gold/10">
+      <section className="bg-gold/5 py-12 border-y border-gold/10">
         <div className="max-w-7xl mx-auto px-6">
           <div className="flex items-center justify-between mb-8">
             <div className="flex items-center gap-3">
@@ -81,7 +120,7 @@ const Home: React.FC<HomeProps> = ({ setActiveImage }) => {
               </div>
               <h2 className="text-xl font-heading font-black text-pakgreen dark:text-white uppercase tracking-tight">Latest News & Updates</h2>
             </div>
-            <Link to="/news" className="text-[10px] font-black text-gold uppercase tracking-widest hover:underline">View All News</Link>
+            <Link to="/news" className="text-xs font-black text-gold uppercase tracking-widest hover:underline">View All News</Link>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {notifications.slice(0, 3).map(news => (
@@ -91,7 +130,7 @@ const Home: React.FC<HomeProps> = ({ setActiveImage }) => {
                 className="p-6 bg-white dark:bg-pakgreen-dark/40 rounded-3xl border border-gold/10 hover:border-gold transition-all cursor-pointer group"
               >
                 <div className="flex justify-between items-start mb-4">
-                  <span className="px-3 py-1 bg-gold/10 text-gold text-[8px] font-black uppercase tracking-widest rounded-full">
+                  <span className="px-3 py-1 bg-gold/10 text-gold text-xs font-black uppercase tracking-widest rounded-full">
                     {news.date}
                   </span>
                   <Share2 
@@ -102,14 +141,14 @@ const Home: React.FC<HomeProps> = ({ setActiveImage }) => {
                 <h3 className="text-sm font-heading font-black text-pakgreen dark:text-white uppercase mb-2 group-hover:text-gold transition-colors line-clamp-2">
                   {news.title}
                 </h3>
-                <p className="text-[10px] text-zinc-500 dark:text-zinc-400 leading-relaxed line-clamp-2">
+                <p className="text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed line-clamp-2">
                   {news.content}
                 </p>
               </div>
             ))}
             {notifications.length === 0 && (
               <div className="col-span-full text-center py-8">
-                <p className="text-zinc-400 text-[10px] font-black uppercase tracking-widest">No recent news available.</p>
+                <p className="text-zinc-400 text-xs font-black uppercase tracking-widest">No recent news available.</p>
               </div>
             )}
           </div>
@@ -119,48 +158,6 @@ const Home: React.FC<HomeProps> = ({ setActiveImage }) => {
       {/* QUESTION OF THE DAY */}
       <section className="max-w-7xl mx-auto px-6 py-12">
         <QuestionOfTheDay />
-      </section>
-
-      {/* 2. FEATURED CATEGORIES */}
-      <section className="max-w-7xl mx-auto px-6 py-24">
-        <div className="text-center mb-16">
-          <span className="text-gold font-black uppercase text-[12px] tracking-[0.5em] mb-4 block">Discovery</span>
-          <h2 className="text-4xl font-heading font-black text-pakgreen dark:text-white uppercase tracking-tight">Featured Categories</h2>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {categories.slice(0, 3).map((cat, idx) => (
-            <div key={cat.id} className="p-10 bg-white dark:bg-pakgreen-dark/30 border border-gold/10 rounded-[40px] hover:border-gold transition-all cursor-pointer group shadow-xl">
-              <div className="w-16 h-16 bg-gold/10 rounded-2xl flex items-center justify-center mb-8 group-hover:bg-gold group-hover:text-pakgreen transition-all">
-                <BookOpen className="h-8 w-8" />
-              </div>
-              <h3 className="text-2xl font-heading font-black text-pakgreen dark:text-white uppercase mb-4">{cat.name}</h3>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed mb-8 line-clamp-2">{cat.description}</p>
-              <Link key={cat.id} to={`/category/${cat.id}`} className="flex items-center gap-2 text-gold font-black text-[10px] uppercase tracking-widest">
-                View Category <ArrowRight className="h-4 w-4" />
-              </Link>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* 3. POPULAR SUBJECTS */}
-      <section className="bg-zinc-50 dark:bg-pakgreen-dark/20 py-24 border-y border-gold/10">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="flex justify-between items-end mb-16">
-            <div>
-              <span className="text-gold font-black uppercase text-[12px] tracking-[0.5em] mb-4 block">Knowledge Base</span>
-              <h2 className="text-4xl font-heading font-black text-pakgreen dark:text-white uppercase tracking-tight">Popular Subjects</h2>
-            </div>
-            <Link to="/subjects" className="text-[10px] font-black text-gold uppercase tracking-widest hover:underline">View All Subjects</Link>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-            {categories.slice(3, 7).map(cat => (
-              <Link key={cat.id} to={`/category/${cat.id}`} className="p-6 bg-white dark:bg-pakgreen-deepest border border-gold/5 rounded-3xl hover:border-gold transition-all text-center group">
-                <h4 className="text-sm font-black text-pakgreen dark:text-white uppercase group-hover:text-gold transition-colors">{cat.name}</h4>
-              </Link>
-            ))}
-          </div>
-        </div>
       </section>
 
       {/* 4. STUDY RESOURCES */}
@@ -177,14 +174,14 @@ const Home: React.FC<HomeProps> = ({ setActiveImage }) => {
                 <div className="p-3 bg-gold/10 rounded-xl text-gold"><Sparkles className="h-5 w-5" /></div>
                 <div>
                   <h4 className="text-sm font-black text-pakgreen dark:text-white uppercase mb-1">Curated PDF Notes</h4>
-                  <p className="text-[10px] text-zinc-500 uppercase tracking-widest">Expert-written summaries for quick revision.</p>
+                  <p className="text-xs text-zinc-500 uppercase tracking-widest">Expert-written summaries for quick revision.</p>
                 </div>
               </div>
               <div className="flex items-start gap-4">
                 <div className="p-3 bg-gold/10 rounded-xl text-gold"><Activity className="h-5 w-5" /></div>
                 <div>
                   <h4 className="text-sm font-black text-pakgreen dark:text-white uppercase mb-1">Interactive Modules</h4>
-                  <p className="text-[10px] text-zinc-500 uppercase tracking-widest">Engage with dynamic content for better retention.</p>
+                  <p className="text-xs text-zinc-500 uppercase tracking-widest">Engage with dynamic content for better retention.</p>
                 </div>
               </div>
             </div>
@@ -195,7 +192,7 @@ const Home: React.FC<HomeProps> = ({ setActiveImage }) => {
               <BookOpen className="h-16 w-16 text-gold mb-8" />
               <h3 className="text-white text-3xl font-heading font-black uppercase mb-4">Resource Library</h3>
               <p className="text-zinc-300 text-xs leading-relaxed mb-8">Explore our full directory of educational assets.</p>
-              <button onClick={() => navigate('/resources')} className="px-8 py-4 bg-gold text-pakgreen rounded-xl font-black uppercase text-[10px] tracking-widest">Browse Library</button>
+              <button onClick={() => navigate('/resources')} className="px-8 py-4 bg-gold text-pakgreen rounded-xl font-black uppercase text-xs tracking-widest">Browse Library</button>
             </div>
           </div>
         </div>
@@ -212,12 +209,12 @@ const Home: React.FC<HomeProps> = ({ setActiveImage }) => {
             <div className="p-10 bg-white/5 border border-white/10 rounded-[40px] hover:border-gold transition-all">
               <h3 className="text-2xl font-heading font-black text-gold uppercase mb-4">Preparation Strategy</h3>
               <p className="text-zinc-300 text-xs leading-relaxed mb-8">Detailed roadmaps and time-management techniques to help you navigate complex examination structures effectively.</p>
-              <Link to="/study-guides" className="text-[10px] font-black text-white uppercase tracking-widest flex items-center gap-2">Read Guide <ChevronRight className="h-4 w-4" /></Link>
+              <Link to="/study-guides" className="text-xs font-black text-white uppercase tracking-widest flex items-center gap-2">Read Guide <ChevronRight className="h-4 w-4" /></Link>
             </div>
             <div className="p-10 bg-white/5 border border-white/10 rounded-[40px] hover:border-gold transition-all">
               <h3 className="text-2xl font-heading font-black text-gold uppercase mb-4">Subject Mastery</h3>
               <p className="text-zinc-300 text-xs leading-relaxed mb-8">Focused guides on core subjects, highlighting key concepts and frequently asked questions in major national exams.</p>
-              <Link to="/study-guides" className="text-[10px] font-black text-white uppercase tracking-widest flex items-center gap-2">Read Guide <ChevronRight className="h-4 w-4" /></Link>
+              <Link to="/study-guides" className="text-xs font-black text-white uppercase tracking-widest flex items-center gap-2">Read Guide <ChevronRight className="h-4 w-4" /></Link>
             </div>
           </div>
         </div>
@@ -230,15 +227,15 @@ const Home: React.FC<HomeProps> = ({ setActiveImage }) => {
             <span className="text-gold font-black uppercase text-[12px] tracking-[0.5em] mb-4 block">Updates</span>
             <h2 className="text-4xl font-heading font-black text-pakgreen dark:text-white uppercase tracking-tight">Latest Content</h2>
           </div>
-          <Link to="/registry" className="text-[10px] font-black text-gold uppercase tracking-widest hover:underline">View All Content</Link>
+          <Link to="/registry" className="text-xs font-black text-gold uppercase tracking-widest hover:underline">View All Content</Link>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {articles.slice(0, 3).map(art => (
             <div key={art.id} onClick={() => navigate(`/article/${art.id}`)} className="bg-white dark:bg-pakgreen-dark/40 p-8 rounded-[40px] border border-gold/10 shadow-xl hover:border-gold transition-all cursor-pointer group">
-              <span className="text-[9px] font-black text-gold uppercase tracking-widest mb-4 block">{art.category}</span>
+              <span className="text-xs font-black text-gold uppercase tracking-widest mb-4 block">{art.category}</span>
               <h4 className="text-lg font-heading font-black text-pakgreen dark:text-white uppercase mb-4 group-hover:text-gold transition-colors line-clamp-2">{art.title}</h4>
-              <p className="text-[10px] text-zinc-500 dark:text-zinc-400 leading-relaxed line-clamp-3 mb-6">{art.content.substring(0, 100)}...</p>
-              <div className="flex items-center gap-2 text-[9px] font-black text-gold uppercase tracking-widest">Read More <ArrowRight className="h-3 w-3" /></div>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed line-clamp-3 mb-6">{art.content.substring(0, 100)}...</p>
+              <div className="flex items-center gap-2 text-xs font-black text-gold uppercase tracking-widest">Read More <ArrowRight className="h-3 w-3" /></div>
             </div>
           ))}
         </div>
@@ -262,7 +259,7 @@ const Home: React.FC<HomeProps> = ({ setActiveImage }) => {
 
       {/* 8. INFORMATIONAL FOOTER DESCRIPTION */}
       <section className="max-w-7xl mx-auto px-6 py-12 border-t border-gold/10">
-        <p className="text-[10px] text-zinc-400 font-medium text-center leading-relaxed max-w-4xl mx-auto">
+        <p className="text-xs text-zinc-400 font-medium text-center leading-relaxed max-w-4xl mx-auto">
           {footerDescription}
         </p>
       </section>
